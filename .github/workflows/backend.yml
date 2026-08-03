@@ -1,0 +1,48 @@
+name: Backend Spring Boot CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/ielts/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build Spring Boot App
+        working-directory: ./backend/ielts
+        run: mvn clean package -DskipTests
+
+      - name: Copy jar to EC2 via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "backend/ielts/target/*.jar"
+          target: "/home/ubuntu/backend"
+
+      - name: SSH to EC2 and restart backend
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            echo "Restarting backend service..."
+            sudo systemctl restart backend
+
+            echo "Checking status..."
+            sudo systemctl status backend --no-pager
+
