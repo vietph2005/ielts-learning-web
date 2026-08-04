@@ -23,9 +23,12 @@ public class Listening {
 
     public static class TaskListening {
         private int taskNumber;
+        private String audioUrl;
         private List<Section> sections;
         public int getTaskNumber() { return taskNumber; }
         public void setTaskNumber(int taskNumber) { this.taskNumber = taskNumber; }
+        public String getAudioUrl() { return audioUrl; }
+        public void setAudioUrl(String audioUrl) { this.audioUrl = audioUrl; }
         public List<Section> getSections() { return sections; }
         public void setSections(List<Section> sections) { this.sections = sections; }
     }

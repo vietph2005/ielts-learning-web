@@ -1,51 +1,67 @@
 package web.ielts.FileUpload;
 
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 @Service
 public class FileUploadService {
 
-    @Value("${firebase.storage.bucket:projectsavefileandaudio.firebasestorage.app}")
-    private String bucketName;
+    @Value("${supabase.url:https://vtgwqleicwbaefsnpxxd.supabase.co}")
+    private String supabaseUrl;
 
-    @Autowired
-    private Storage storage;
+    @Value("${supabase.key:}")
+    private String supabaseKey;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public FileUploadService() {
     }
 
-    public FileUploadService(String bucketName, Storage storage) {
-        this.bucketName = bucketName;
-        this.storage = storage;
-    }
-
     public String uploadFile(MultipartFile file, String folder) throws IOException {
-        String filePath = generateFilePathWithTimestamp(folder, file.getOriginalFilename());
+        String bucket = ("audio".equalsIgnoreCase(folder) || isAudioFile(file.getOriginalFilename())) ? "audio" : "image";
+        String destinationFilename = generateFilename(file.getOriginalFilename());
 
-        BlobId blobId = BlobId.of(bucketName, filePath);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                .setContentType(file.getContentType())
-                .build();
+        String uploadUrl = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, bucket, destinationFilename);
 
-        storage.create(blobInfo, file.getBytes());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + supabaseKey);
+        headers.set("apiKey", supabaseKey);
+        headers.set("x-upsert", "true");
+        if (file.getContentType() != null && !file.getContentType().isEmpty()) {
+            headers.setContentType(MediaType.parseMediaType(file.getContentType()));
+        } else {
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        }
 
-        String encodedPath = URLEncoder.encode(filePath, StandardCharsets.UTF_8);
-        return String.format("https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media", bucketName, encodedPath);
+        HttpEntity<byte[]> requestEntity = new HttpEntity<>(file.getBytes(), headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(uploadUrl, HttpMethod.POST, requestEntity, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, bucket, destinationFilename);
+        } else {
+            throw new IOException("Failed to upload file to Supabase Storage: " + response.getBody());
+        }
     }
 
-    private String generateFilePathWithTimestamp(String folder, String originalFilename) {
-        if (originalFilename == null) {
+    private boolean isAudioFile(String filename) {
+        if (filename == null) return false;
+        String lower = filename.toLowerCase();
+        return lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.endsWith(".m4a");
+    }
+
+    private String generateFilename(String originalFilename) {
+        if (originalFilename == null || originalFilename.isEmpty()) {
             originalFilename = "file";
         }
         String baseName = originalFilename.contains(".") ?
@@ -58,6 +74,6 @@ public class FileUploadService {
 
         long timestamp = Instant.now().toEpochMilli();
 
-        return String.format("%s/test/%s_%d%s", folder, baseName, timestamp, extension);
+        return String.format("%s_%d%s", baseName.replaceAll("[^a-zA-Z0-9._-]", "_"), timestamp, extension);
     }
 }

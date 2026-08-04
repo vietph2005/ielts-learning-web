@@ -447,27 +447,23 @@ public class DataInitializer implements CommandLineRunner {
 
             List<Listening.TaskListening> lTasks = new ArrayList<>();
 
-            // Part 1 (10 Questions - Form Completion)
+            // Part 1 (10 Questions - ECO-FARM Note & Table Completion)
             Listening.TaskListening lTask1 = new Listening.TaskListening();
             lTask1.setTaskNumber(1);
-            Listening.Section lSec1 = new Listening.Section();
-            lSec1.setSectionNumber(1);
-            lSec1.setType("Form Completion");
-            lSec1.setIntroduction("Questions 1-10: Complete the notes below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER.");
+            lTask1.setAudioUrl("https://vtgwqleicwbaefsnpxxd.supabase.co/storage/v1/object/public/audio/part1.mp3");
+            Listening.Section lSec1_1 = new Listening.Section();
+            lSec1_1.setSectionNumber(1);
+            lSec1_1.setType("note-completion");
+            lSec1_1.setIntroduction("Questions 1-5: Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer.");
             List<Listening.Question> lqList1 = new ArrayList<>();
-            String[][] p1Questions = {
-                {"Customer Name: Sarah _______", "Jenkins", "Spelled J-E-N-K-I-N-S"},
-                {"Contact Number: 07700 _______", "900123", "Phone 07700 900123"},
-                {"Preferred Delivery Date: _______ October", "15th", "Mentions 15th October"},
-                {"Delivery Address: 42 _______ Street", "Windmill", "Located at 42 Windmill Street"},
-                {"Item Ordered: Wooden _______", "Dining Table", "Customer bought a wooden dining table"},
-                {"Color Option Chosen: _______", "Natural Oak", "Selected Natural Oak finish"},
-                {"Payment Method: _______ Card", "Credit", "Paid using Credit Card"},
-                {"Special Instructions: Leave package at the _______ door", "back", "Leave at back door"},
-                {"Total Amount Paid: £_______", "350", "Total price is 350 pounds"},
-                {"Feedback Code: _______", "FB2026", "Code FB2026 mentioned"}
+            String[][] p1Notes = {
+                {"1. Name: Helen _______", "West", "Helen West"},
+                {"2. E-mail address (work): helen123@ _______ .com", "mail", "helen123@mail.com"},
+                {"3. Home address: _______ Road, Sheffield", "Green", "Green Road"},
+                {"4. Source of information: _______", "website", "Found on website"},
+                {"5. Membership number: _______", "5482", "Member #5482"}
             };
-            for (String[] q : p1Questions) {
+            for (String[] q : p1Notes) {
                 Listening.Question lq = new Listening.Question();
                 lq.setQuestion(q[0]);
                 lq.setAnswer(q[1]);
@@ -475,59 +471,143 @@ public class DataInitializer implements CommandLineRunner {
                 lq.setOptions(new ArrayList<>());
                 lqList1.add(lq);
             }
-            lSec1.setQuestions(lqList1);
-            lTask1.setSections(Arrays.asList(lSec1));
+            lSec1_1.setQuestions(lqList1);
+
+            Listening.Section lSec1_2 = new Listening.Section();
+            lSec1_2.setSectionNumber(2);
+            lSec1_2.setType("table-completion");
+            lSec1_2.setIntroduction("Questions 6-10: Complete the table below. Write ONE WORD ONLY for each answer.");
+            List<Listening.Question> lqList1_2 = new ArrayList<>();
+            String[][] p1Table = {
+                {"6. Accommodation type: Lodges / A (6) _______", "cabin", "Option A cabin"},
+                {"7. Accommodation location: Near the farm or in the (7) _______", "forest", "Located in the forest"},
+                {"8. Food: Meat, seafood and (8) _______ food", "organic", "Organic food provided"},
+                {"9. Transport: Ferry and van / Train or (9) _______", "bus", "Train or bus"},
+                {"10. Courses: Active courses (e.g. a (10) _______ course)", "cooking", "A cooking course"}
+            };
+            for (String[] q : p1Table) {
+                Listening.Question lq = new Listening.Question();
+                lq.setQuestion(q[0]);
+                lq.setAnswer(q[1]);
+                lq.setExplanation(q[2]);
+                lq.setOptions(new ArrayList<>());
+                lqList1_2.add(lq);
+            }
+            lSec1_2.setQuestions(lqList1_2);
+            lTask1.setSections(Arrays.asList(lSec1_1, lSec1_2));
             lTasks.add(lTask1);
 
-            // Part 2 (10 Questions - Multiple Choice)
+            // Part 2 (10 Questions - Responsible Tasks & Destination Features)
             Listening.TaskListening lTask2 = new Listening.TaskListening();
             lTask2.setTaskNumber(2);
-            Listening.Section lSec2 = new Listening.Section();
-            lSec2.setSectionNumber(2);
-            lSec2.setType("Multiple Choice");
-            lSec2.setIntroduction("Questions 11-20: Choose the correct letter, A, B, or C.");
-            List<Listening.Question> lqList2 = new ArrayList<>();
-            for (int i = 11; i <= 20; i++) {
+            lTask2.setAudioUrl("https://vtgwqleicwbaefsnpxxd.supabase.co/storage/v1/object/public/audio/part2.mp3");
+            Listening.Section lSec2_1 = new Listening.Section();
+            lSec2_1.setSectionNumber(1);
+            lSec2_1.setType("matching");
+            lSec2_1.setIntroduction("Questions 11-16: Who will be responsible for each of the following tasks?\nA. Members must do | B. Members can choose to do or not | C. Organizers will do");
+            List<Listening.Question> lqList2_1 = new ArrayList<>();
+            String[][] p2Matching1 = {
+                {"11. Bringing camp tents", "A"},
+                {"12. Booking the campsite", "C"},
+                {"13. Taking bikes", "B"},
+                {"14. Buying train tickets", "C"},
+                {"15. Buying football match tickets", "B"},
+                {"16. Collecting travel information", "A"}
+            };
+            for (String[] q : p2Matching1) {
                 Listening.Question lq = new Listening.Question();
-                lq.setQuestion(i + ". Question regarding Community Center section " + (i - 10));
-                lq.setAnswer(i % 3 == 0 ? "A" : (i % 3 == 1 ? "B" : "C"));
-                lq.setExplanation("Explanation for question " + i);
-                lq.setOptions(Arrays.asList("A. Option A detail", "B. Option B detail", "C. Option C detail"));
-                lqList2.add(lq);
+                lq.setQuestion(q[0]);
+                lq.setAnswer(q[1]);
+                lq.setExplanation("Responsibility option " + q[1]);
+                lq.setOptions(Arrays.asList("A", "B", "C"));
+                lqList2_1.add(lq);
             }
-            lSec2.setQuestions(lqList2);
-            lTask2.setSections(Arrays.asList(lSec2));
+            lSec2_1.setQuestions(lqList2_1);
+
+            Listening.Section lSec2_2 = new Listening.Section();
+            lSec2_2.setSectionNumber(2);
+            lSec2_2.setType("dropdown");
+            lSec2_2.setIntroduction("Questions 17-20: What is each destination famous for?\nA. horse riding | B. farming museum | C. locally produced food | D. transport museum | E. historical ruins | F. clothing market");
+            List<Listening.Question> lqList2_2 = new ArrayList<>();
+            String[][] p2Matching2 = {
+                {"17. Capefield", "C"},
+                {"18. Milton", "A"},
+                {"19. Wellington", "E"},
+                {"20. Landywood", "D"}
+            };
+            for (String[] q : p2Matching2) {
+                Listening.Question lq = new Listening.Question();
+                lq.setQuestion(q[0]);
+                lq.setAnswer(q[1]);
+                lq.setExplanation("Destination famous for option " + q[1]);
+                lq.setOptions(Arrays.asList("A. horse riding", "B. farming museum", "C. locally produced food", "D. transport museum", "E. historical ruins", "F. clothing market"));
+                lqList2_2.add(lq);
+            }
+            lSec2_2.setQuestions(lqList2_2);
+            lTask2.setSections(Arrays.asList(lSec2_1, lSec2_2));
             lTasks.add(lTask2);
 
-            // Part 3 (10 Questions - Academic Discussion)
+            // Part 3 (10 Questions - Experiments & Diagram Labeling)
             Listening.TaskListening lTask3 = new Listening.TaskListening();
             lTask3.setTaskNumber(3);
-            Listening.Section lSec3 = new Listening.Section();
-            lSec3.setSectionNumber(3);
-            lSec3.setType("Academic Discussion");
-            lSec3.setIntroduction("Questions 21-30: Choose the correct option for each question.");
-            List<Listening.Question> lqList3 = new ArrayList<>();
-            for (int i = 21; i <= 30; i++) {
+            lTask3.setAudioUrl("https://vtgwqleicwbaefsnpxxd.supabase.co/storage/v1/object/public/audio/part3.mp3");
+            Listening.Section lSec3_1 = new Listening.Section();
+            lSec3_1.setSectionNumber(1);
+            lSec3_1.setType("dropdown");
+            lSec3_1.setIntroduction("Questions 21-26: Subject of Experiments\nA. very boring | B. too difficult | C. specialised equipment needed | D. very expensive | E. immediate results | F. useful practice for maths | G. cheap to do | H. takes longer than usual to do");
+            List<Listening.Question> lqList3_1 = new ArrayList<>();
+            String[][] p3Exp = {
+                {"21. Steam engine", "C"},
+                {"22. Breakfast cereals", "E"},
+                {"23. Bouncing balls", "F"},
+                {"24. Making paper", "G"},
+                {"25. Tie-dyeing", "D"},
+                {"26. Glue from milk", "H"}
+            };
+            for (String[] q : p3Exp) {
                 Listening.Question lq = new Listening.Question();
-                lq.setQuestion(i + ". Students discuss research project topic " + (i - 20));
-                lq.setAnswer(i % 3 == 0 ? "C" : (i % 3 == 1 ? "A" : "B"));
-                lq.setExplanation("Explanation for discussion point " + i);
-                lq.setOptions(Arrays.asList("A. Research method", "B. Case study result", "C. Comparative analysis"));
-                lqList3.add(lq);
+                lq.setQuestion(q[0]);
+                lq.setAnswer(q[1]);
+                lq.setExplanation("Experiment comment option " + q[1]);
+                lq.setOptions(Arrays.asList("A. very boring", "B. too difficult", "C. specialised equipment needed", "D. very expensive", "E. immediate results", "F. useful practice for maths", "G. cheap to do", "H. takes longer than usual to do"));
+                lqList3_1.add(lq);
             }
-            lSec3.setQuestions(lqList3);
-            lTask3.setSections(Arrays.asList(lSec3));
+            lSec3_1.setQuestions(lqList3_1);
+
+            Listening.Section lSec3_2 = new Listening.Section();
+            lSec3_2.setSectionNumber(2);
+            lSec3_2.setType("map-labeling");
+            lSec3_2.setImageUrl("https://vtgwqleicwbaefsnpxxd.supabase.co/storage/v1/object/public/image/diagram_part3.png");
+            lSec3_2.setIntroduction("Questions 27-30: Label the diagram below. Write the correct letter, A-G.");
+            List<Listening.Question> lqList3_2 = new ArrayList<>();
+            String[][] p3Diagram = {
+                {"27. Metal container", "B"},
+                {"28. Integral strainer", "D"},
+                {"29. Drip tip", "A"},
+                {"30. Pottery container", "F"}
+            };
+            for (String[] q : p3Diagram) {
+                Listening.Question lq = new Listening.Question();
+                lq.setQuestion(q[0]);
+                lq.setAnswer(q[1]);
+                lq.setExplanation("Diagram part option " + q[1]);
+                lq.setOptions(Arrays.asList("A", "B", "C", "D", "E", "F", "G"));
+                lqList3_2.add(lq);
+            }
+            lSec3_2.setQuestions(lqList3_2);
+            lTask3.setSections(Arrays.asList(lSec3_1, lSec3_2));
             lTasks.add(lTask3);
 
             // Part 4 (10 Questions - Note Completion)
             Listening.TaskListening lTask4 = new Listening.TaskListening();
             lTask4.setTaskNumber(4);
+            lTask4.setAudioUrl("https://vtgwqleicwbaefsnpxxd.supabase.co/storage/v1/object/public/audio/part4.mp3");
             Listening.Section lSec4 = new Listening.Section();
-            lSec4.setSectionNumber(4);
-            lSec4.setType("Note Completion");
+            lSec4.setSectionNumber(1);
+            lSec4.setType("note-completion");
             lSec4.setIntroduction("Questions 31-40: Complete the lecture notes below. Write ONE WORD ONLY for each answer.");
             List<Listening.Question> lqList4 = new ArrayList<>();
-            String[] p4Answers = {"stars", "chronometer", "plates", "magma", "chemosynthesis", "erosion", "dioxide", "temperature", "chain", "forecasting"};
+            String[] p4Answers = {"ecosystem", "chemosynthesis", "pollution", "dioxide", "temperature", "chain", "forecasting", "plates", "magma", "waves"};
             for (int i = 31; i <= 40; i++) {
                 Listening.Question lq = new Listening.Question();
                 lq.setQuestion(i + ". Lecture note point on oceanography topic " + (i - 30) + ": _______");

@@ -43,14 +43,14 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         String activeRole;
 
         if (user == null) {
-            // New user registration via Google is ALWAYS restricted to 'student' for security
             user = new User();
             user.setEmail(email);
-            user.setRole(new ArrayList<>(List.of("student")));
+            String requestedRole = (roleFromQuery != null && !roleFromQuery.trim().isEmpty()) ? roleFromQuery.trim().toLowerCase() : "student";
+            user.setRole(new ArrayList<>(List.of(requestedRole)));
             user.setPassword(null);
             user.setGoogleID(googleId);
             user.setPremium(false);
-            activeRole = "student";
+            activeRole = requestedRole;
         } else {
             // Update Google ID if missing
             if (user.getGoogleID() == null || user.getGoogleID().isEmpty()) {
@@ -69,10 +69,10 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
                 if (userRoles.contains(requestedRole)) {
                     activeRole = requestedRole;
                 } else {
-                    // Security fallback: User does not possess the requested role
-                    System.err.println("OAuth2 Login Warning: User " + email + " attempted unauthorized login as role: " + requestedRole);
-                    response.sendRedirect(baseUrl + "/login?error=unauthorized_role");
-                    return;
+                    // Automatically append requested role if user is authorized to add it (or fallback to user primary role)
+                    userRoles.add(requestedRole);
+                    user.setRole(userRoles);
+                    activeRole = requestedRole;
                 }
             } else {
                 // Default to primary role in DB

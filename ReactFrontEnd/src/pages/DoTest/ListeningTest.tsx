@@ -23,6 +23,7 @@ export type Section = {
 export type TaskListening = {
     taskNumber: number;
     title?: string;
+    audioUrl?: string;
     audioIntroduction?: string;
     sections: Section[];
 };
@@ -249,7 +250,7 @@ export default function ListeningTest() {
           dark:bg-[#202124] dark:text-gray-100
           transition-colors duration-300"
             >
-                <audio ref={audioRef} src={listeningTest.audioUrl} />
+                <audio ref={audioRef} src={currentTask?.audioUrl || listeningTest.audioUrl} key={currentTask?.audioUrl || listeningTest.audioUrl} />
                 <div className="sticky top-0 z-50 shadow-sm bg-white dark:bg-[#303134] border-b border-gray-200 dark:border-gray-600">
                     <DoTestHeader
                         initialTime={3600}
