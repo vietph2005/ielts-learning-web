@@ -317,9 +317,14 @@ export default function ListeningTest() {
 
                         return (
                             <div key={sectionIdx} className="mb-10">
-                                <h2 className="text-base font-semibold text-teal-600 mb-4 dark:text-teal-300">
-                                  Questions {startId}{startId !== endId ? `-${endId}` : ""}: {section.introduction}
+                                <h2 className="text-base font-semibold text-teal-600 mb-2 dark:text-teal-300">
+                                  Questions {startId}{startId !== endId ? `-${endId}` : ""}
                                 </h2>
+                                {section.introduction && (
+                                    <div className="text-sm text-gray-700 italic mb-4 whitespace-pre-line dark:text-gray-300">
+                                        {section.introduction}
+                                    </div>
+                                )}
                                 {section.imageUrl && (
                                     <div className="mb-4 flex justify-center">
                                         <img src={section.imageUrl} alt="Section related" className="max-h-60 rounded shadow" />

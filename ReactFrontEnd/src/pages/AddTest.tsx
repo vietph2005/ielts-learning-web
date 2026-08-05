@@ -8,6 +8,9 @@ import { AddWriting } from '@/components/sections/addTest/AddWriting';
 import { AddSpeaking } from '@/components/sections/addTest/AddSpeaking';
 import { AddReading } from '@/components/sections/addTest/AddReading';
 import General from '@/components/sections/addTest/General';
+import { generateFullIELTSExcelTemplate, parseFullIELTSExcel } from '@/services/excelService';
+import type { FullIELTSParseResult } from '@/services/excelService';
+import { ExcelImportModal } from '@/components/sections/addTest/ExcelImportModal';
 
 interface TestDataState extends Test {
   newTag: string;
@@ -29,6 +32,9 @@ type Skill = typeof skillTabs[number]['id'];
 const API_URL = import.meta.env.VITE_API_URL;
 
 const AddTest: FC = () => {
+  const [parseResult, setParseResult] = useState<FullIELTSParseResult | null>(null);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
   const [testData, setTestData] = useState<TestDataState>(() => {
     const savedData = localStorage.getItem(AUTOSAVE_KEY);
     if (savedData) {
@@ -53,14 +59,13 @@ const AddTest: FC = () => {
 
   const [activeTab, setActiveTab] = useState<Skill>('general');
 
-  // Auto-save
+  // Auto-save with quota fallback
   useEffect(() => {
     const saveToLocalStorage = () => {
       try {
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(testData));
-        console.log('Auto-saved test data');
       } catch (e) {
-        console.error('Error auto-saving data:', e);
+        console.warn('QuotaExceededError saving testData to localStorage:', e);
       }
     };
     saveToLocalStorage();
@@ -296,6 +301,96 @@ const AddTest: FC = () => {
     }
   };
 
+  // Excel handlers
+  const handleExcelFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await parseFullIELTSExcel(file);
+      setParseResult(res);
+      setIsExcelModalOpen(true);
+    } catch (err) {
+      alert('Lỗi đọc file Excel. Vui lòng kiểm tra lại định dạng file!');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleConfirmExcelImport = (mode: 'overwrite' | 'merge') => {
+    if (!parseResult || !parseResult.data) return;
+
+    const { data } = parseResult;
+
+    // Apply Title & Tags if present
+    if (data.title || data.tags) {
+      setTestData((prev) => ({
+        ...prev,
+        title: data.title || prev.title,
+        tags: data.tags && data.tags.length > 0 ? (mode === 'overwrite' ? data.tags : [...prev.tags, ...data.tags]) : prev.tags,
+      }));
+    }
+
+    // Apply Listening
+    if (data.listening) {
+      try {
+        const currentSaved = localStorage.getItem('test_autosave_listening');
+        const parsedCurrent = currentSaved ? JSON.parse(currentSaved) : {};
+        const newSections = mode === 'overwrite' || !parsedCurrent.sections ? data.listening : { ...parsedCurrent.sections, ...data.listening };
+        localStorage.setItem(
+          'test_autosave_listening',
+          JSON.stringify({ ...parsedCurrent, sections: newSections })
+        );
+      } catch (e) {
+        console.warn('LocalStorage error setting listening:', e);
+      }
+    }
+
+    // Apply Reading
+    if (data.reading) {
+      try {
+        if (data.reading.sections) {
+          const currentSaved = localStorage.getItem('test_autosave_reading');
+          const parsedCurrent = currentSaved ? JSON.parse(currentSaved) : {};
+          const newSections = mode === 'overwrite' || !parsedCurrent ? data.reading.sections : { ...parsedCurrent, ...data.reading.sections };
+          localStorage.setItem('test_autosave_reading', JSON.stringify(newSections));
+        }
+
+        if (data.reading.paragraphs) {
+          const currentSavedP = localStorage.getItem('test_autosave_reading_paragraphs');
+          const parsedCurrentP = currentSavedP ? JSON.parse(currentSavedP) : {};
+          const newP = mode === 'overwrite' || !parsedCurrentP ? data.reading.paragraphs : { ...parsedCurrentP, ...data.reading.paragraphs };
+          localStorage.setItem('test_autosave_reading_paragraphs', JSON.stringify(newP));
+        }
+      } catch (e) {
+        console.warn('LocalStorage error setting reading:', e);
+      }
+    }
+
+    // Apply Writing
+    if (data.writing && data.writing.length > 0) {
+      try {
+        const currentW = JSON.parse(localStorage.getItem('test_autosave_writing') || '[]');
+        const newW = mode === 'overwrite' ? data.writing : [...currentW, ...data.writing];
+        localStorage.setItem('test_autosave_writing', JSON.stringify(newW));
+      } catch (e) {
+        console.warn('LocalStorage error setting writing:', e);
+      }
+    }
+
+    // Apply Speaking
+    if (data.speaking && data.speaking.length > 0) {
+      try {
+        localStorage.setItem('test_autosave_speaking', JSON.stringify(data.speaking));
+      } catch (e) {
+        console.warn('LocalStorage error setting speaking:', e);
+      }
+    }
+
+    setIsExcelModalOpen(false);
+    alert('Import dữ liệu từ file Excel thành công! Đang tải lại tiến trình...');
+    window.location.reload();
+  };
+
   // Memoized skill handlers
   const handleSkillDataChange = (skill: keyof Test, data: any) => {
     setTestData((prev) => ({ ...prev, [skill]: data }));
@@ -362,13 +457,37 @@ const AddTest: FC = () => {
           <h1 className="text-center text-4xl font-bold text-white mb-2">Create New Test</h1>
           <p className="text-center text-blue-100">Design your IELTS test with our intuitive interface</p>
           <p className="text-center text-blue-200 text-sm mt-2">Auto-saving enabled - Your progress is automatically saved</p>
-          <button
-            onClick={clearAutosavedData}
-            className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm mx-auto block"
-          >
-            Clear Test
-          </button>
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
+            <button
+              onClick={generateFullIELTSExcelTemplate}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-all shadow-xs flex items-center gap-1.5"
+            >
+              📥 Tải Mẫu Excel (Full 4 Kỹ Năng)
+            </button>
+            <label className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-all shadow-xs cursor-pointer flex items-center gap-1.5">
+              📤 Import Đề Thi Từ Excel
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                className="hidden"
+                onChange={handleExcelFileUpload}
+              />
+            </label>
+            <button
+              onClick={clearAutosavedData}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm font-medium transition-all shadow-xs"
+            >
+              Clear Test
+            </button>
+          </div>
         </div>
+
+        <ExcelImportModal
+          isOpen={isExcelModalOpen}
+          parseResult={parseResult}
+          onClose={() => setIsExcelModalOpen(false)}
+          onConfirmImport={handleConfirmExcelImport}
+        />
 
         <div className="p-8 bg-gray-50">
           <div className="flex gap-1 bg-white rounded-xl shadow-sm p-2 mb-8">

@@ -436,7 +436,7 @@ export default function ReadingTest() {
                                     })()}
 
                                     {section.introduction && (
-                                        <p className="text-gray-700 italic mb-4 dark:text-gray-400">{section.introduction}</p>
+                                        <p className="text-gray-700 italic mb-4 whitespace-pre-line dark:text-gray-400">{section.introduction}</p>
                                     )}
                                     {section.imageUrl && (
                                         <img
