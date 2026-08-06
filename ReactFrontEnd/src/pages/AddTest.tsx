@@ -12,6 +12,8 @@ import { generateFullIELTSExcelTemplate, parseFullIELTSExcel } from '@/services/
 import type { FullIELTSParseResult } from '@/services/excelService';
 import { ExcelImportModal } from '@/components/sections/addTest/ExcelImportModal';
 
+import { useParams, useNavigate } from 'react-router-dom';
+
 interface TestDataState extends Test {
   newTag: string;
 }
@@ -32,12 +34,17 @@ type Skill = typeof skillTabs[number]['id'];
 const API_URL = import.meta.env.VITE_API_URL;
 
 const AddTest: FC = () => {
+  const { testId: routeTestId } = useParams<{ testId?: string }>();
+  const navigate = useNavigate();
+  const isEditMode = Boolean(routeTestId);
+
   const [parseResult, setParseResult] = useState<FullIELTSParseResult | null>(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [editDataKey, setEditDataKey] = useState(0);
 
   const [testData, setTestData] = useState<TestDataState>(() => {
     const savedData = localStorage.getItem(AUTOSAVE_KEY);
-    if (savedData) {
+    if (savedData && !isEditMode) {
       try {
         return JSON.parse(savedData);
       } catch (e) {
@@ -45,7 +52,7 @@ const AddTest: FC = () => {
       }
     }
     return {
-      testId: '',
+      testId: routeTestId || '',
       title: '',
       tags: [],
       createdAt: '',
@@ -58,6 +65,118 @@ const AddTest: FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<Skill>('general');
+
+  // Load test data when in Edit mode
+  useEffect(() => {
+    if (!routeTestId) return;
+
+    const fetchTestDetails = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/teacher/test/${routeTestId}`, {
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to fetch test for editing');
+        const data = await response.json();
+
+        // 1. General Test Data
+        if (data.test) {
+          setTestData({
+            testId: data.test.testId,
+            title: data.test.testTitle || '',
+            tags: data.test.tags || [],
+            createdAt: data.test.createAt || data.test.createdAt || new Date().toISOString(),
+            listening: [],
+            reading: [],
+            writing: [],
+            speaking: [],
+            newTag: '',
+          });
+        }
+
+        // 2. Listening Data
+        if (data.listening) {
+          const lData = data.listening;
+          const sectionsMap: Record<number, any[]> = {};
+          const taskAudiosMap: Record<number, string> = {};
+
+          if (Array.isArray(lData.tasks)) {
+            lData.tasks.forEach((t: any) => {
+              if (t.taskNumber) {
+                sectionsMap[t.taskNumber] = t.sections || [];
+                if (t.audioUrl) taskAudiosMap[t.taskNumber] = t.audioUrl;
+              }
+            });
+          }
+
+          localStorage.setItem(
+            'test_autosave_listening',
+            JSON.stringify({
+              audioUrl: lData.audioUrl || '',
+              sections: sectionsMap,
+              taskAudios: taskAudiosMap,
+            })
+          );
+        }
+
+        // 3. Reading Data
+        if (data.reading) {
+          const rData = data.reading;
+          const sectionsMap: Record<number, any[]> = {};
+          const paragraphsMap: Record<number, string> = {};
+
+          if (Array.isArray(rData.tasks)) {
+            rData.tasks.forEach((t: any) => {
+              if (t.taskNumber) {
+                sectionsMap[t.taskNumber] = t.sections || [];
+                paragraphsMap[t.taskNumber] = t.paragraph || '';
+              }
+            });
+          }
+
+          localStorage.setItem('test_autosave_reading', JSON.stringify(sectionsMap));
+          localStorage.setItem('test_autosave_reading_paragraphs', JSON.stringify(paragraphsMap));
+        }
+
+        // 4. Writing Data
+        if (data.writing) {
+          const wData = data.writing;
+          const tasksList: any[] = [];
+          if (Array.isArray(wData.tasks)) {
+            wData.tasks.forEach((t: any) => {
+              tasksList.push({
+                prompt: t.question || t.prompt || '',
+                imageUrl: t.imageUrl || '',
+              });
+            });
+          }
+          localStorage.setItem('test_autosave_writing', JSON.stringify(tasksList));
+        }
+
+        // 5. Speaking Data
+        if (data.speaking) {
+          const sData = data.speaking;
+          const speakingList = [
+            { questions: (sData.part1?.questions || []).map((q: any) => q.question) },
+            {
+              cueCard: {
+                topic: sData.part2?.question || '',
+                points: sData.part2?.cueCards || ['', '', ''],
+              },
+            },
+            { questions: (sData.part3?.questions || []).map((q: any) => q.question) },
+          ];
+          localStorage.setItem('test_autosave_speaking', JSON.stringify(speakingList));
+        }
+
+        setEditDataKey((prev) => prev + 1);
+      } catch (err) {
+        console.error('Error fetching test details:', err);
+        alert('Lỗi khi tải thông tin bài test để chỉnh sửa.');
+      }
+    };
+
+    fetchTestDetails();
+  }, [routeTestId]);
 
   // Auto-save with quota fallback
   useEffect(() => {
@@ -73,8 +192,9 @@ const AddTest: FC = () => {
     return () => clearInterval(intervalId);
   }, [testData]);
 
-  // Fetch test count để tạo testId
+  // Fetch test count để tạo testId khi tạo mới
   useEffect(() => {
+    if (isEditMode) return;
     const generateTestId = async () => {
       try {
         const response = await fetch(`${API_URL}/api/test/count`);
@@ -91,7 +211,7 @@ const AddTest: FC = () => {
       }
     };
     if (!testData.testId) generateTestId();
-  }, []);
+  }, [isEditMode]);
 
   const clearAutosavedData = () => {
     if (window.confirm('Are you sure you want to clear all saved data and start over?')) {
@@ -106,55 +226,51 @@ const AddTest: FC = () => {
   };
 
   const validateTest = () => {
-    const skillCounts = { listening: 40, reading: 40 }; // Đếm số câu hỏi
+    const skillCounts = { listening: 0, reading: 0 };
 
-    (['listening', 'reading'] as const).forEach((skill) => {
-      const tasks = testData[skill] as unknown;
-      if (Array.isArray(tasks)) {
-        tasks.forEach((task) => {
-          if (task?.sections && Array.isArray(task.sections)) {
-            task.sections.forEach((section: any) => {
-              if (section?.questions && Array.isArray(section.questions)) {
-                skillCounts[skill] += section.questions.length;
+    // Count Listening questions
+    try {
+      const listeningData = JSON.parse(localStorage.getItem('test_autosave_listening') || '{}');
+      const sectionsMap = listeningData.sections || listeningData;
+      if (sectionsMap && typeof sectionsMap === 'object') {
+        Object.values(sectionsMap).forEach((sections: any) => {
+          if (Array.isArray(sections)) {
+            sections.forEach((sec: any) => {
+              if (sec?.questions && Array.isArray(sec.questions)) {
+                skillCounts.listening += sec.questions.length;
               }
             });
           }
         });
       }
-    });
+    } catch (e) {
+      console.error('Error counting listening questions:', e);
+    }
+
+    // Count Reading questions
+    try {
+      const readingData = JSON.parse(localStorage.getItem('test_autosave_reading') || '{}');
+      if (readingData && typeof readingData === 'object') {
+        Object.values(readingData).forEach((passage: any) => {
+          if (Array.isArray(passage)) {
+            passage.forEach((sec: any) => {
+              if (sec?.questions && Array.isArray(sec.questions)) {
+                skillCounts.reading += sec.questions.length;
+              }
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error counting reading questions:', e);
+    }
 
     const invalidSkills = Object.entries(skillCounts)
       .filter(([skill, count]) => skill !== 'writing' && skill !== 'speaking' && count !== MAX_QUESTIONS_PER_SKILL)
       .map(([skill, count]) => `${skill} (${count}/${MAX_QUESTIONS_PER_SKILL})`);
 
     if (invalidSkills.length > 0) {
-      alert(`Listening and Reading must have exactly ${MAX_QUESTIONS_PER_SKILL} questions. Invalid: ${invalidSkills.join(', ')}`);
-      return false;
-    }
-
-    let hasInvalidOptions = false;
-    const listening = testData.listening;
-    if (Array.isArray(listening)) {
-      listening.forEach((task) => {
-        if (task?.sections && Array.isArray(task.sections)) {
-          task.sections.forEach((section: any) => {
-            if (section?.questions && Array.isArray(section.questions)) {
-              section.questions.forEach((q: any) => {
-                // Chỉ kiểm tra options cho multiple-choice và dropdown
-                if (section.type === 'multiple-choice' || section.type === 'dropdown') {
-                  if (!q.options || q.options.length < MIN_OPTIONS) {
-                    hasInvalidOptions = true;
-                  }
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-
-    if (hasInvalidOptions) {
-      alert(`Multiple-choice and dropdown questions must have at least ${MIN_OPTIONS} options.`);
+      alert(`Listening and Reading must have exactly ${MAX_QUESTIONS_PER_SKILL} questions. Current count: ${invalidSkills.join(', ')}`);
       return false;
     }
 
@@ -171,27 +287,28 @@ const AddTest: FC = () => {
       const writingData = JSON.parse(localStorage.getItem('test_autosave_writing') || '[]');
       const speakingData = JSON.parse(localStorage.getItem('test_autosave_speaking') || '[]');
 
+      const listeningSectionsMap = listeningData.sections || (listeningData[1] ? listeningData : {});
       const listeningCollection = {
         testId: testData.testId,
         audioUrl: listeningData.audioUrl || '',
-        tasks: Object.entries(listeningData.sections || {})
+        tasks: Object.entries(listeningSectionsMap)
           .filter(([key]) => !isNaN(Number(key)))
           .map(([taskNumber, sections]) => ({
             taskNumber: Number(taskNumber),
-            sections: (sections as any[]).map((section) => ({
+            audioUrl: listeningData.taskAudios?.[Number(taskNumber)] || listeningData.audioUrl || '',
+            sections: Array.isArray(sections) ? (sections as any[]).map((section) => ({
               sectionNumber: section.sectionNumber,
               type: section.type,
               imageUrl: section.imageUrl || '',
               introduction: section.introduction,
-              questions: section.questions.map((q: any) => ({
+              questions: Array.isArray(section.questions) ? section.questions.map((q: any) => ({
                 questionNumber: q.questionNumber,
                 question: q.question,
                 answer: q.answer,
                 explanation: q.explanation || '',
-                // Chỉ giữ options cho multiple-choice và dropdown
                 options: section.type === 'multiple-choice' || section.type === 'dropdown' ? q.options || [] : [],
-              })),
-            })),
+              })) : [],
+            })) : [],
           })),
       };
 
@@ -222,18 +339,14 @@ const AddTest: FC = () => {
           })),
       };
 
+      const writingTasksList = Array.isArray(writingData) ? writingData : Object.values(writingData);
       const writingCollection = {
         testId: testData.testId,
-        tasks: Object.entries(writingData)
-          .filter(([key]) => !isNaN(Number(key)))
-          .map(([taskNumber, task]) => {
-            const t = task as WritingTask;
-            return {
-              taskNumber: parseInt(taskNumber) + 1,
-              imageUrl: t.imageUrl || '',
-              question: t.prompt || '',
-            };
-          }),
+        tasks: writingTasksList.map((t: any, idx: number) => ({
+          taskNumber: idx + 1,
+          imageUrl: t.imageUrl || '',
+          question: t.prompt || t.question || '',
+        })),
       };
 
       const speakingCollection = {
@@ -275,8 +388,14 @@ const AddTest: FC = () => {
         speaking: speakingCollection,
       };
 
-      const response = await fetch(`${API_URL}/api/teacher/request-test`, {
-        method: 'POST',
+      const endpoint = isEditMode
+        ? `${API_URL}/api/teacher/test/${testData.testId}`
+        : `${API_URL}/api/teacher/request-test`;
+
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -284,10 +403,10 @@ const AddTest: FC = () => {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error('Failed to save test');
+      if (!response.ok) throw new Error(isEditMode ? 'Failed to update test' : 'Failed to save test');
 
       const result = await response.text();
-      alert(`Send request test successfully: ${result}`);
+      alert(isEditMode ? `Update test successfully: ${result}` : `Send request test successfully: ${result}`);
       // Xóa dữ liệu autosave sau khi lưu thành công
       localStorage.removeItem(AUTOSAVE_KEY);
       localStorage.removeItem('test_autosave_listening');
@@ -295,6 +414,10 @@ const AddTest: FC = () => {
       localStorage.removeItem('test_autosave_reading_paragraphs');
       localStorage.removeItem('test_autosave_writing');
       localStorage.removeItem('test_autosave_speaking');
+
+      if (isEditMode) {
+        navigate('/manage-tests');
+      }
     } catch (error) {
       console.error('Error saving test:', error);
       alert('Error saving test.');
@@ -438,13 +561,13 @@ const AddTest: FC = () => {
       case 'general':
         return <General testData={testData} handleInputChange={handleInputChange} addTag={addTag} removeTag={removeTag} />;
       case 'listening':
-        return <AddListening onDataChange={handleListeningChange} />;
+        return <AddListening key={`listening-${editDataKey}`} onDataChange={handleListeningChange} />;
       case 'reading':
-        return <AddReading onDataChange={handleReadingChange} />;
+        return <AddReading key={`reading-${editDataKey}`} onDataChange={handleReadingChange} />;
       case 'writing':
-        return <AddWriting onDataChange={handleWritingChange} />;
+        return <AddWriting key={`writing-${editDataKey}`} onDataChange={handleWritingChange} />;
       case 'speaking':
-        return <AddSpeaking onDataChange={handleSpeakingChange} />;
+        return <AddSpeaking key={`speaking-${editDataKey}`} onDataChange={handleSpeakingChange} />;
       default:
         return null;
     }
@@ -454,7 +577,9 @@ const AddTest: FC = () => {
     <div className="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen p-8 font-sans">
       <div className="max-w-[90%] mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
         <div className="border-b bg-gradient-to-r from-blue-600 to-blue-800 p-8">
-          <h1 className="text-center text-4xl font-bold text-white mb-2">Create New Test</h1>
+          <h1 className="text-center text-4xl font-bold text-white mb-2">
+            {isEditMode ? `Edit Test (${testData.testId})` : 'Create New Test'}
+          </h1>
           <p className="text-center text-blue-100">Design your IELTS test with our intuitive interface</p>
           <p className="text-center text-blue-200 text-sm mt-2">Auto-saving enabled - Your progress is automatically saved</p>
           <div className="flex flex-wrap justify-center gap-3 mt-4">

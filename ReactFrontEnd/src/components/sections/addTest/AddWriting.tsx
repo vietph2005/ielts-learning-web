@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 // import type { Task } from '@/types/apiTypes';
 import { skillColors } from '@/types/apiTypes';
 import { uploadFile } from '../../../services/fileUploadService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WritingTask {
   prompt: string;
@@ -16,6 +17,7 @@ interface AddWritingProps {
 const WRITING_AUTOSAVE_KEY = 'test_autosave_writing';
 
 export const AddWriting: FC<AddWritingProps> = ({ onDataChange }) => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<WritingTask[]>(() => {
     // Try to load saved writing data
     const savedData = localStorage.getItem(WRITING_AUTOSAVE_KEY);
@@ -80,7 +82,7 @@ export const AddWriting: FC<AddWritingProps> = ({ onDataChange }) => {
     setUploadImageError(null);
 
     try {
-      const url = await uploadFile(imageFile, 'image');
+      const url = await uploadFile(imageFile, 'image', 'writing', user?.role, user?.username);
       const updatedTasks = [...tasks];
       updatedTasks[currentTaskIndex] = {
         ...updatedTasks[currentTaskIndex],

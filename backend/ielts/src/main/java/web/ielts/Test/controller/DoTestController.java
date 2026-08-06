@@ -110,8 +110,9 @@ public class DoTestController {
             @RequestParam(required = false) String testAnswerId,
             @AuthenticationPrincipal User user
     ) {
-        String studentUsername = user.getUsername();
-        System.out.println("User: " + studentUsername);
+        String studentUsername = (user != null && user.getUsername() != null) ? user.getUsername() : "anonymous";
+        String userRole = (user != null && user.getRole() != null && !user.getRole().isEmpty()) ? user.getRole().get(0) : "STUDENT";
+        System.out.println("User: " + studentUsername + ", Role: " + userRole);
 
         String testId;
         SpeakingAnswer submission;
@@ -136,14 +137,12 @@ public class DoTestController {
             return ResponseEntity.badRequest().body(errorResponse);
         }
 
-        String folderPath = "audio/user/" + studentUsername + "/" + testId + "_" + saved.getId();
         Map<String, String> fileUrlMap = new HashMap<>();
 
         if (files != null && files.length > 0) {
             for (MultipartFile file : files) {
                 try {
-                    String key = folderPath + "/" + file.getOriginalFilename();
-                    String url = doTestService.uploadFile(file, key);
+                    String url = doTestService.uploadFile(file, "speaking", userRole, studentUsername);
                     fileUrlMap.put(file.getOriginalFilename(), url);
                     System.out.println("Uploaded: " + url);
                 } catch (IOException e) {

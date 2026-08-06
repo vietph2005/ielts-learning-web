@@ -55,6 +55,42 @@ public class AddTestController {
         }
     }
 
+    @GetMapping("/teacher/tests")
+    public ResponseEntity<List<Map<String, Object>>> getTeacherTests() {
+        try {
+            List<Map<String, Object>> tests = testService.getAllTestsForTeacher();
+            return ResponseEntity.ok(tests);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @GetMapping("/teacher/test/{testId}")
+    public ResponseEntity<Map<String, Object>> getTestForEdit(@PathVariable String testId) {
+        try {
+            Map<String, Object> details = testService.getFullTestDetails(testId);
+            if (details == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(details);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @PutMapping("/teacher/test/{testId}")
+    public ResponseEntity<String> updateTest(@PathVariable String testId, @RequestBody AddTestRequest request) {
+        try {
+            testService.updateFullTest(testId, request);
+            return ResponseEntity.ok("Test updated successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Failed to update test: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/manager/request-tests")
     public ResponseEntity<List<AddTest>> getAllRequestTests() {
         try {
@@ -134,22 +170,22 @@ public class AddTestController {
 
             if (addTest == null) return ResponseEntity.badRequest().body("Test not found");
 
-            // Chuyển sang model chính
-//comment nay de test chu khong co chuc nang j ca
-            Listening listening = addTestService.convertAddListeningToListening(addListening);
+            String newTestId = testService.generateNextTestId();
+
+            Listening listening = addTestService.convertAddListeningToListening(addListening, newTestId);
             if (listening != null) listeningRepo.save(listening);
 
-            Reading reading = addTestService.convertAddReadingToReading(addReading);
+            Reading reading = addTestService.convertAddReadingToReading(addReading, newTestId);
             if (reading != null) readingRepo.save(reading);
 
-            Writing writing = addTestService.convertAddWritingToWriting(addWriting);
+            Writing writing = addTestService.convertAddWritingToWriting(addWriting, newTestId);
             if (writing != null) writingRepo.save(writing);
 
-            Speaking speaking = addTestService.convertAddSpeakingToSpeaking(addSpeaking);
+            Speaking speaking = addTestService.convertAddSpeakingToSpeaking(addSpeaking, newTestId);
             if (speaking != null) speakingRepo.save(speaking);
 
             Test test = new Test();
-            test.setTestId(testService.generateNextTestId());
+            test.setTestId(newTestId);
             test.setTestTitle(addTest.getTestTitle());
             test.setTags(addTest.getTags());
             SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd");

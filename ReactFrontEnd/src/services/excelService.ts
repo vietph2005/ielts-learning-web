@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import type { Question, Section, WritingTask, SpeakingTask } from '@/types/apiTypes';
+import type { Section, WritingTask, SpeakingTask } from '@/types/apiTypes';
 
 export interface ExcelError {
   sheet: string;
@@ -298,6 +298,17 @@ export const parseFullIELTSExcel = async (file: File): Promise<FullIELTSParseRes
       let lastQType = 'multiple-choice';
       let lastIntro = '';
 
+      // Find explanation column index from header if available
+      const headerRow: any[] = rows[0] || [];
+      let expColIndex = -1;
+      for (let c = 0; c < headerRow.length; c++) {
+        const hHeader = safeString(headerRow[c]).toLowerCase();
+        if (hHeader.includes('explanation') || hHeader.includes('giải thích')) {
+          expColIndex = c;
+          break;
+        }
+      }
+
       for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
         const row = rows[rowIndex];
         if (!row || row.length === 0 || row.every((c) => c === undefined || c === '')) continue;
@@ -368,11 +379,27 @@ export const parseFullIELTSExcel = async (file: File): Promise<FullIELTSParseRes
         const qNumStr = safeString(row[4 + offset]);
         const questionText = safeString(row[5 + offset]);
         const rawAnswer = safeString(row[6 + offset]);
-        const optA = safeString(row[7 + offset]);
-        const optB = safeString(row[8 + offset]);
-        const optC = safeString(row[9 + offset]);
-        const optD = safeString(row[10 + offset]);
-        const explanation = safeString(row[11 + offset]);
+
+        // Determine options and explanation dynamically
+        const startOptIdx = 7 + offset;
+        let explanation = '';
+        let rawOptions: string[] = [];
+
+        if (expColIndex > startOptIdx) {
+          explanation = safeString(row[expColIndex]);
+          for (let c = startOptIdx; c < expColIndex; c++) {
+            const optVal = safeString(row[c]);
+            if (optVal) rawOptions.push(optVal);
+          }
+        } else {
+          // Fallback if Explanation header wasn't found at expected index
+          // Assume columns startOptIdx up to 10 + offset are options, 11 + offset is explanation
+          for (let c = startOptIdx; c <= 10 + offset; c++) {
+            const optVal = safeString(row[c]);
+            if (optVal) rawOptions.push(optVal);
+          }
+          explanation = safeString(row[11 + offset]);
+        }
 
         if (!qNumStr) {
           warnings.push({
@@ -404,19 +431,20 @@ export const parseFullIELTSExcel = async (file: File): Promise<FullIELTSParseRes
         questionNumbersSeen.add(qNum);
 
         const answer = normalizeAnswer(rawAnswer);
-        const options = [optA, optB, optC, optD].filter(Boolean);
+        const options = rawOptions;
 
         // Find or create section
         let taskSections = sectionsMap[taskNum];
         let section = taskSections.find((s) => s.sectionNumber === secNum);
         if (!section) {
-          section = {
+          const newSec: Section = {
             sectionNumber: secNum,
             type: qType,
             introduction: introduction,
             questions: [],
           };
-          taskSections.push(section);
+          taskSections.push(newSec);
+          section = newSec;
         }
 
         section.questions.push({

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FC } from 'react';
+import { uploadFile } from '../../services/fileUploadService';
 
 interface MediaServicesProps {
   onAudioUrlReceived?: (url: string) => void;
@@ -24,21 +25,9 @@ export const MediaServices: FC<MediaServicesProps> = ({ onAudioUrlReceived, onIm
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('audio', audioFile);
-
-      const response = await fetch(`${API_URL}/api/media/upload-audio`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload audio');
-      }
-
-      const data = await response.json();
+      const url = await uploadFile(audioFile, 'audio', 'listening');
       if (onAudioUrlReceived) {
-        onAudioUrlReceived(data.url);
+        onAudioUrlReceived(url);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload audio');
@@ -57,21 +46,9 @@ export const MediaServices: FC<MediaServicesProps> = ({ onAudioUrlReceived, onIm
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('image', imageFile);
-
-      const response = await fetch(`${API_URL}/api/media/upload-image`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload image');
-      }
-
-      const data = await response.json();
+      const url = await uploadFile(imageFile, 'image', 'listening');
       if (onImageUrlReceived) {
-        onImageUrlReceived(data.url);
+        onImageUrlReceived(url);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');

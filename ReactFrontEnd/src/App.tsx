@@ -57,6 +57,7 @@ import AdminPage from "./pages/AdminPage"
 //import StaffLogin from "./components/sections/StaffLogin"
 import { StaffPage } from "@/pages/StaffPage"
 import AddTest from "@/pages/AddTest"
+import ManageTestsPage from "@/pages/ManageTestsPage";
 import AcceptTestPage from "@/pages/AcceptTestPage"
 import RequestTestDetailPage from "@/pages/RequestTestDetailPage"
 import VocabularyList from "./pages/student/VocabularyList"
@@ -216,6 +217,8 @@ export default function App() {
                         <Route path="/manager-login" element={<ManagerLogin />} /> */}
                         <Route path="/staff-page" element={<ProtectedLayoutRole allowRoles={["teacher", "manager"]}><StaffLayout><StaffPage /></StaffLayout></ProtectedLayoutRole>} />
                         <Route path="/add-test" element={<ProtectedLayout allowRoles={["teacher"]}><StaffLayout><AddTest /></StaffLayout></ProtectedLayout>} />
+                        <Route path="/edit-test/:testId" element={<ProtectedLayout allowRoles={["teacher"]}><StaffLayout><AddTest /></StaffLayout></ProtectedLayout>} />
+                        <Route path="/manage-tests" element={<ProtectedLayout allowRoles={["teacher"]}><StaffLayout><ManageTestsPage /></StaffLayout></ProtectedLayout>} />
                         <Route path="/accept-tests" element={<ProtectedLayout allowRoles={["manager"]}><StaffLayout><AcceptTestPage /></StaffLayout></ProtectedLayout>} />
                         <Route path="/request-test-detail" element={<ProtectedLayout allowRoles={["manager"]}><StaffLayout><RequestTestDetailPage /></StaffLayout></ProtectedLayout>} />
                         <Route path="/transactions" element={<ProtectedLayout allowRoles={["manager"]}><StaffLayout><TransactionPage /></StaffLayout></ProtectedLayout>} />

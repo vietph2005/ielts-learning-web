@@ -1,4 +1,4 @@
-export interface Section{
+export interface ExerciseSection {
     question: string | string[];
     options?: string[];
     answer: string | string[];
@@ -9,7 +9,7 @@ export interface Exercises {
     audioUrl?: string;
     instruction: string;
     imageUrl?: string;
-    section: Section[];
+    section: ExerciseSection[];
 }
 
 export interface IELTSTest {
@@ -17,20 +17,6 @@ export interface IELTSTest {
     testTitle: string
     tags: string[]
     createdAt: string
-}
-
-export interface Section{
-    question: string | string[];
-    options?: string[];
-    answer: string | string[];
-    explanation: string | string[];
-}
-export interface Exercises {
-    paragraph?: string;
-    audioUrl?: string;
-    instruction: string;
-    imageUrl?: string;
-    section: Section[];
 }
 
 export interface Tip {

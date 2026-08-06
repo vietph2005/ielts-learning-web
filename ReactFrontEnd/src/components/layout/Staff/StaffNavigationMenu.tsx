@@ -46,6 +46,13 @@ export function StaffNavigationMenu({ role, onLogout }: StaffNavigationMenuProps
             {role === "teacher" && (
               <>
                 <NavigationMenuItem>
+                  <Link to="/manage-tests">
+                    <Button variant="ghost" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-semibold text-blue-600">
+                      Manage Tests
+                    </Button>
+                  </Link>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
                   <Link to="/add-test">
                     <Button variant="ghost" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100">
                       Add Test

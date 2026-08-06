@@ -4,6 +4,7 @@ import type { Question, Section, QuestionValue } from '@/types/apiTypes';
 import { skillColors } from '@/types/apiTypes';
 import { SectionComponent } from './SectionComponent';
 import { uploadFile } from '../../../services/fileUploadService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const READING_AUTOSAVE_KEY = 'test_autosave_reading';
 
@@ -12,6 +13,7 @@ interface AddReadingProps {
 }
 
 export const AddReading: FC<AddReadingProps> = ({ onDataChange }) => {
+  const { user } = useAuth();
   // Init Sections
   const [sections, setSections] = useState<{ [key: number]: Section[] }>(() => {
     try {
@@ -228,7 +230,7 @@ export const AddReading: FC<AddReadingProps> = ({ onDataChange }) => {
     setUploadImageError(null);
 
     try {
-      const url = await uploadFile(imageFile, 'image');
+      const url = await uploadFile(imageFile, 'image', 'reading', user?.role, user?.username);
       const { taskNum, sectionNum } = currentSection;
       
       const updatedSections = [...(sections[taskNum] || [])];
@@ -240,7 +242,6 @@ export const AddReading: FC<AddReadingProps> = ({ onDataChange }) => {
           imageUrl: url
         };
         setSections({ ...sections, [taskNum]: updatedSections });
-        localStorage.setItem(READING_AUTOSAVE_KEY, JSON.stringify({ ...sections, [taskNum]: updatedSections }));
       }
 
       console.log('Image uploaded successfully:', url);

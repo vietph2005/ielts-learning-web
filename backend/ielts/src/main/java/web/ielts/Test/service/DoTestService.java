@@ -7,9 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import web.ielts.FileUpload.FileUploadService;
 import web.ielts.Test.model.*;
 
 import web.ielts.Test.model.answer.listening.ListeningAnswer;
@@ -70,15 +68,13 @@ public class DoTestService {
     @Autowired
     private SpeakingRepository speakingRepository;
     @Autowired
-    private Storage storage;
-    @Autowired
     private WhisperService whisper;
     @Autowired
     private AiSpeakingService aiSpeakingService;
     @Autowired
     private AzurePronunciationService azurePronunciationService;
-    @Value("${firebase.storage.bucket:projectsavefileandaudio.firebasestorage.app}")
-    private String bucket;
+    @Autowired
+    private FileUploadService fileUploadService;
 
 
 
@@ -505,46 +501,28 @@ public class DoTestService {
     public SpeakingAnswer saveSubmission(SpeakingAnswer submission) {
         return speakingAnswerRepository.save(submission);
     }
-    public String uploadFile(MultipartFile file, String key) throws IOException {
+    public String uploadFile(MultipartFile file, String subfolder, String role, String username) throws IOException {
         try {
-            // Giữ nguyên key gốc (không thay đổi đường dẫn thư mục)
-            String originalKey = key;
-
-            // Kiểm tra nếu là file WebM thì chuyển đổi
-            if (file.getContentType().equals("audio/webm")) {
+            if (file.getContentType() != null && file.getContentType().equals("audio/webm")) {
                 File mp3File = AudioService.convertWebmToMp3(file);
-
-                // Chỉ thay đổi phần đuôi file từ .webm sang .mp3
-                String mp3Key = originalKey.replace(".webm", ".mp3");
+                String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "audio.webm";
+                String mp3Filename = originalName.endsWith(".webm") ? originalName.replace(".webm", ".mp3") : originalName + ".mp3";
 
                 try (InputStream is = new FileInputStream(mp3File)) {
-                    uploadToFirebase(is, mp3File.length(), mp3Key, "audio/mpeg");
+                    byte[] bytes = is.readAllBytes();
+                    return fileUploadService.uploadFileBytes(bytes, mp3Filename, "audio/mpeg", "audio", subfolder, role, username);
+                } finally {
+                    mp3File.delete();
                 }
-
-                mp3File.delete();
-                return buildUrl(mp3Key);
-            }
-            // Upload trực tiếp nếu không phải WebM
-            else {
-                uploadToFirebase(file.getInputStream(), file.getSize(), originalKey, file.getContentType());
-                return buildUrl(originalKey);
+            } else {
+                return fileUploadService.uploadFile(file, "audio", subfolder, role, username);
             }
         } catch (Exception e) {
-            throw new IOException("Failed to upload file: " + e.getMessage(), e);
+            throw new IOException("Failed to upload file to Supabase: " + e.getMessage(), e);
         }
     }
 
-    private void uploadToFirebase(InputStream inputStream, long contentLength,
-                                  String key, String contentType) throws IOException {
-        BlobId blobId = BlobId.of(bucket, key);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                .setContentType(contentType)
-                .build();
-        storage.create(blobInfo, inputStream.readAllBytes());
-    }
-
-    private String buildUrl(String key) {
-        String encodedKey = URLEncoder.encode(key, StandardCharsets.UTF_8);
-        return String.format("https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media", bucket, encodedKey);
+    public String uploadFile(MultipartFile file, String key) throws IOException {
+        return uploadFile(file, "speaking", "STUDENT", "anonymous");
     }
 }

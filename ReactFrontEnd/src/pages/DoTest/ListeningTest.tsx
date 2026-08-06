@@ -95,28 +95,56 @@ export default function ListeningTest() {
                 });
                 setListeningTest(updated);
             })
-            .catch(console.error);
     }, [testId]);
+
+    const currentTask = listeningTest?.tasks[currentPart - 1];
+    const currentAudioUrl = currentTask?.audioUrl || listeningTest?.audioUrl;
 
     // Xử lý sự kiện audio
     useEffect(() => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setProgress(0);
+        setDuration(0);
+
         const audio = audioRef.current;
         if (!audio) return;
 
+        audio.pause();
+        audio.currentTime = 0;
+
         const update = () => {
             setCurrentTime(audio.currentTime);
-            setProgress((audio.currentTime / audio.duration) * 100);
+            if (audio.duration) {
+                setProgress((audio.currentTime / audio.duration) * 100);
+            }
         };
-        const loaded = () => setDuration(audio.duration);
+        const loaded = () => setDuration(audio.duration || 0);
+        const handleEnded = () => {
+            setIsPlaying(false);
+            setProgress(100);
+        };
+        const handleError = (e: Event) => {
+            console.error("Audio failed to load:", e);
+            setIsPlaying(false);
+        };
 
         audio.addEventListener("timeupdate", update);
         audio.addEventListener("loadedmetadata", loaded);
+        audio.addEventListener("ended", handleEnded);
+        audio.addEventListener("error", handleError);
+
+        if (audio.readyState >= 1) {
+            setDuration(audio.duration || 0);
+        }
 
         return () => {
             audio.removeEventListener("timeupdate", update);
             audio.removeEventListener("loadedmetadata", loaded);
+            audio.removeEventListener("ended", handleEnded);
+            audio.removeEventListener("error", handleError);
         };
-    }, [listeningTest]);
+    }, [currentPart, currentAudioUrl, listeningTest]);
 
     const handleFullscreen = () => {
         if (!containerRef.current) return;
@@ -138,6 +166,11 @@ export default function ListeningTest() {
         const audio = audioRef.current;
         if (!audio) return;
 
+        if (!currentAudioUrl) {
+            alert("Không tìm thấy link audio cho phần thi này!");
+            return;
+        }
+
         if (isPlaying) {
             audio.pause();
             setIsPlaying(false);
@@ -146,6 +179,7 @@ export default function ListeningTest() {
                 .then(() => setIsPlaying(true))
                 .catch((err) => {
                     console.error("Cannot play audio:", err);
+                    alert("Không thể phát file âm thanh. Vui lòng kiểm tra lại link audio trên Supabase.");
                     setIsPlaying(false); // keep correct state if error
                 });
         }
@@ -239,7 +273,6 @@ export default function ListeningTest() {
         }
     };
 
-    const currentTask = listeningTest?.tasks[currentPart - 1];
     if (!listeningTest || !currentTask) return null;
 
     return (
