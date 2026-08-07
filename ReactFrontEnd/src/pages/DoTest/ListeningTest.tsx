@@ -4,7 +4,8 @@ import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import {customFetch} from "@/components/sections/customFetch";
+import { customFetch } from "@/components/sections/customFetch";
+
 export type Question = {
     question: string;
     answer: string;
@@ -80,7 +81,7 @@ export default function ListeningTest() {
     // Fetch dữ liệu test listening
     useEffect(() => {
         if (!testId) return;
-        customFetch(`${API_URL}/verify/listening/${testId}`, )
+        customFetch(`${API_URL}/verify/listening/${testId}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
                 if (!data) return;
@@ -94,7 +95,7 @@ export default function ListeningTest() {
                     });
                 });
                 setListeningTest(updated);
-            })
+            });
     }, [testId]);
 
     const currentTask = listeningTest?.tasks[currentPart - 1];
@@ -180,7 +181,7 @@ export default function ListeningTest() {
                 .catch((err) => {
                     console.error("Cannot play audio:", err);
                     alert("Không thể phát file âm thanh. Vui lòng kiểm tra lại link audio trên Supabase.");
-                    setIsPlaying(false); // keep correct state if error
+                    setIsPlaying(false);
                 });
         }
     };
@@ -240,7 +241,6 @@ export default function ListeningTest() {
                     const question = q as QuestionWithStudentAnswer;
                     const qid = question.questionId!;
                     question.studentAnswer = answers[qid] || null;
-                    delete question.explanation;
                     delete question.options;
                 });
             });
@@ -290,7 +290,7 @@ export default function ListeningTest() {
                         onSubmit={handleSubmit}
                         isDarkMode={isDarkMode}
                         toggleDarkMode={toggleDarkMode}
-                        onFullscreenToggle={handleFullscreen} // pass fullscreen handler
+                        onFullscreenToggle={handleFullscreen}
                         isHighlightMode={isHighlightMode}
                         toggleHighlightMode={toggleHighlightMode}
                     />
@@ -304,9 +304,7 @@ export default function ListeningTest() {
                             onClick={togglePlayPause}
                             className="bg-teal-500 text-white hover:bg-teal-600"
                         >
-                            <>
-                                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                            </>
+                            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                         </Button>
                         <div className="flex-1">
                             <input
@@ -338,12 +336,10 @@ export default function ListeningTest() {
                         Part {currentTask.taskNumber}: {currentTask.title}
                     </h1>
                     {currentTask.sections.map((section, sectionIdx) => {
-                        // Lấy questionId đầu và cuối
                         const firstQ = section.questions[0] as QuestionWithStudentAnswer;
                         const lastQ = section.questions[section.questions.length - 1] as QuestionWithStudentAnswer;
                         const startId = firstQ.questionId!;
                         const endId = lastQ.questionId!;
-                        // Chia câu hỏi thành 2 cột
                         const mid = Math.ceil(section.questions.length / 2);
                         const col1 = section.questions.slice(0, mid);
                         const col2 = section.questions.slice(mid);
@@ -366,10 +362,9 @@ export default function ListeningTest() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {[col1, col2].map((col, colIdx) => (
                                         <div key={colIdx}>
-                                            {col.map((q, _idx) => {
+                                            {col.map((q) => {
                                                 const question = q as QuestionWithStudentAnswer;
                                                 const qId = question.questionId!;
-                                                // Kiểm tra loại section
                                                 const isSelectType = section.type === "map-labeling" || section.type === "dropdown";
                                                 return (
                                                     <React.Fragment key={qId}>
@@ -385,7 +380,6 @@ export default function ListeningTest() {
                                                                 >
                                                                     <option value="" disabled>Chọn đáp án</option>
                                                                     {question.options?.map((opt, i) => {
-                                                                        // Nếu option có dạng "A. Education", lấy ký tự đầu tiên trước dấu chấm
                                                                         const value = /^[A-Z]\./.test(opt) ? opt.split(".")[0] : opt;
                                                                         return (
                                                                             <option key={i} value={value}>{opt}</option>
@@ -395,7 +389,6 @@ export default function ListeningTest() {
                                                             ) : question.options?.length ? (
                                                                 <div className="space-y-2 text-sm">
                                                                     {question.options.map((opt, i) => {
-                                                                        // Nếu option có dạng "A. Education", lấy ký tự đầu tiên trước dấu chấm
                                                                         const value = /^[A-Z]\./.test(opt) ? opt.split(".")[0] : opt;
                                                                         return (
                                                                             <label key={i} className="flex items-center gap-2">

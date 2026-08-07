@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, XCircle, Clock, Target, BookOpen, Headphones } from "lucide-react"
-import {useNavigate, useParams} from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -10,6 +11,7 @@ export default function ReadingResult() {
     const [result, setResult] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [isModalOpen, setIsModalOpen] = useState(false)
     const { resultId } = useParams<{ resultId: string }>()
     const [currentTaskIdx, setCurrentTaskIdx] = useState(0)
     const navigate = useNavigate()
@@ -120,17 +122,23 @@ export default function ReadingResult() {
                 </Button>
 
                 {/* Header Section - Matching SpeakingResult design */}
-                <div className="bg-green-600 rounded-2xl p-4 mb-6 text-white">
-                    <div className="text-center mb-4">
+                <div className="bg-green-600 rounded-2xl p-6 mb-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
                         <p className="text-green-100 text-xs font-medium mb-1 uppercase tracking-wide">FINAL SCORE</p>
-                        <h1 className="text-2xl font-bold mb-4">IELTS Reading Result</h1>
+                        <h1 className="text-2xl font-bold">IELTS Reading Result</h1>
                     </div>
-                    <div className="flex justify-center">
-                        <div className="bg-green-50 rounded-2xl p-3 text-center w-32">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-green-50 rounded-2xl p-3 text-center w-32 shadow">
                             <p className="text-green-600 text-xs font-medium mb-1">Band Score</p>
                             <div className="text-3xl font-bold text-green-800 mb-1">{result.band}</div>
                             <p className="text-green-600 text-xs">/9.0</p>
                         </div>
+                        <Button
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-white text-green-700 hover:bg-green-50 font-bold px-4 py-3 rounded-xl shadow border border-green-200"
+                        >
+                            🔍 Xem Chi Tiết Pop-up
+                        </Button>
                     </div>
                 </div>
 
@@ -244,11 +252,12 @@ export default function ReadingResult() {
                         </h3>
 
                         <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {result.tasks?.[currentTaskIdx]?.sections?.flatMap((section: any) =>
-                                section.questions?.map((q: any, idx: number) => {
-                                    const correct = isAnswerCorrect(q, section.type)
-                                    return (
-                                        <div key={idx} className="bg-white border border-gray-200 rounded-2xl p-6">
+                            {result.tasks?.[currentTaskIdx]?.sections?.flatMap((section: any, sIdx: number) =>
+                                    section.questions?.map((q: any, idx: number) => {
+                                        const correct = isAnswerCorrect(q, section.type)
+                                        const uniqueKey = q.questionId ? `q-${q.questionId}` : `q-${sIdx}-${idx}`
+                                        return (
+                                            <div key={uniqueKey} className="bg-white border border-gray-200 rounded-2xl p-6">
                                             <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
                                                 <div
                                                     className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -308,10 +317,9 @@ export default function ReadingResult() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-center gap-4">
-                    <Button className="bg-green-600 hover:bg-green-700" onClick={() => navigate(`/tips/Reading`)}>
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        Do practice
+                <div className="flex justify-center gap-4 mt-6">
+                    <Button className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setIsModalOpen(true)}>
+                        🔍 Xem Chi Tiết Giải Thích
                     </Button>
                     <Button variant="outline" className="border-green-600 text-green-600 hover:bg-green-50" onClick={() => navigate("/test-history")}>
                         <Clock className="h-4 w-4 mr-2" />
@@ -319,6 +327,14 @@ export default function ReadingResult() {
                     </Button>
                 </div>
             </div>
+
+            <DetailExplanationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                resultId={resultId}
+                skill="reading"
+                initialData={result}
+            />
         </div>
     )
 }

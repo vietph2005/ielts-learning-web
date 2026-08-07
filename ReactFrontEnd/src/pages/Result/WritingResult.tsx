@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import {useNavigate, useParams} from "react-router-dom";
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 
 interface Review {
     scoreEva: string;
@@ -66,6 +67,7 @@ export default function WritingResult() {
     const [data, setData] = useState<WritingAnswer | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTask, setActiveTask] = useState<"task1" | "task2">("task1")
+    const [isModalOpen, setIsModalOpen] = useState(false)
     const navigate = useNavigate()
     const [openSections, setOpenSections] = useState<{
         question: boolean
@@ -687,7 +689,23 @@ export default function WritingResult() {
                     : (data.task2 ? renderTaskContent(data.task2) : <Card className="p-8 text-center">No data for Task 2</Card>)}
                 </div>
 
+                <div className="flex justify-center mt-8">
+                    <Button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg"
+                    >
+                        🔍 Xem Chi Tiết Giải Thích (Pop-up)
+                    </Button>
+                </div>
             </div>
+
+            <DetailExplanationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                resultId={resultId}
+                skill="writing"
+                initialData={data}
+            />
         </div>
     )
 }

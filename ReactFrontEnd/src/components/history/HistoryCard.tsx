@@ -11,6 +11,7 @@ import { vi } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TestHistory } from '../../services/historyService';
+import { DetailExplanationModal } from '../modals/DetailExplanationModal';
 
 interface HistoryCardProps {
   item: TestHistory;
@@ -40,23 +41,33 @@ const skillMap: Record<
     label: 'Nói',
     color: 'bg-green-100 text-green-700',
   },
+  fulltest: {
+    icon: <ListeningIcon className="text-purple-600" />,
+    label: 'Full Test',
+    color: 'bg-purple-100 text-purple-700',
+  },
 };
 
 const HistoryCard: React.FC<HistoryCardProps> = ({ item }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleRedoTest = () => {
-    navigate(`/do-test/${item.skill}/${item.testID}`);
+    if (item.skill === 'fulltest') {
+      navigate(`/test/full/${item.testID}`);
+    } else {
+      navigate(`/test/${item.skill}/${item.testID}`);
+    }
   };
 
-  const handleViewHistory = () => {
-    navigate(`/history/${item.testID}`);
+  const handleOpenDetailModal = () => {
+    setIsModalOpen(true);
   };
 
   const skill = skillMap[item.skill] || {
     icon: null,
-    label: '',
+    label: item.skill,
     color: 'bg-green-100 text-green-700',
   };
 
@@ -72,6 +83,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item }) => {
   const bandProgress = Math.min((item.band / 9) * 100, 100);
 
   return (
+    <>
       <motion.div
           layout
           initial={{ opacity: 0, y: 10 }}
@@ -146,22 +158,22 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item }) => {
                       {format(new Date(item.submittedAt), 'dd/MM/yyyy HH:mm:ss', { locale: vi })}
                     </p>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-2 mt-20">
+                  <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-20">
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleRedoTest}
-                        className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md text-xs shadow transition"
+                        className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded-xl text-xs shadow transition font-semibold"
                     >
                       Làm lại bài thi
                     </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={handleViewHistory}
-                        className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md text-xs shadow transition"
+                        onClick={handleOpenDetailModal}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs shadow transition font-bold flex items-center gap-1"
                     >
-                      Lịch sử làm bài
+                      🔍 Xem chi tiết giải thích
                     </motion.button>
                   </div>
 
@@ -170,6 +182,15 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item }) => {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Pop-up Modal hiển thị giải thích chi tiết */}
+      <DetailExplanationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        resultId={item.id || item.testID}
+        skill={item.skill}
+      />
+    </>
   );
 };
 

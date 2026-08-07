@@ -8,6 +8,7 @@ import { Mic, Square, ChevronRight, CheckCircle, AlertCircle, Volume2, Brain } f
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { customFetch } from "@/components/sections/customFetch"
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal"
 import { DoTestSpeakingHeader } from "@/components/layout/doTest/DoTestSpeakingHeader"
 import {
     Dialog,
@@ -76,6 +77,9 @@ const SpeakingTest = () => {
     const recognitionRef = useRef<any>(null); // dùng any nếu TS báo lỗi SpeechRecognition
     const [_recordingStartTime, setRecordingStartTime] = useState<number | null>(null)
     const [isGrading, setIsGrading] = useState(false); // Thêm state loading overlay
+    const [submittedResult, setSubmittedResult] = useState<any>(null);
+    const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [totalRecordingTime, setTotalRecordingTime] = useState<{ [key in Part]: number }>({
         part1: 0,
         part2: 0,
@@ -494,18 +498,18 @@ const SpeakingTest = () => {
                     body: formData,
                 });
             }
+            if (!res.ok) throw new Error("Fail to submit!");
             const result = await res.json();
-            setIsGrading(false); // Tắt overlay trước khi chuyển trang
+            setIsGrading(false);
             if (mode === "fulltest") {
                 navigate(`/test/fulltest-result/${testAnswerId}`);
             } else {
                 navigate(`/speaking-result/${result.id}`);
                 alert("Your essay has been graded by AI! Your essay has been submitted successfully!");
             }
-            if (!res.ok) throw new Error("Fail to submit!")
         } catch (err) {
             console.error(err)
-            setIsGrading(false); // Tắt overlay nếu lỗi
+            setIsGrading(false);
             alert("Submission failed!")
         }
         setIsSubmitting(false)

@@ -11,6 +11,8 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { customFetch } from "@/components/sections/customFetch";
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -49,8 +51,10 @@ export default function WritingTest() {
     const [isHighlightMode, setIsHighlightMode] = useState(false);
     const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
     const toggleHighlightMode = () => setIsHighlightMode((prev) => !prev);
-    const containerRef = useRef<HTMLDivElement>(null);
     const [isGrading, setIsGrading] = useState(false); // Add loading overlay state
+    const [submittedResult, setSubmittedResult] = useState<any>(null);
+    const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
 
     useEffect(() => {

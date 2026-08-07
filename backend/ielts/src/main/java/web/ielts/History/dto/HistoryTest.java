@@ -3,6 +3,7 @@ package web.ielts.History.dto;
 import java.time.LocalDateTime;
 
 public class HistoryTest {
+    private String id;
     private String testID;
     private String username;
     private String skill;
@@ -12,12 +13,21 @@ public class HistoryTest {
     public HistoryTest() {
     }
 
-    public HistoryTest(String testID, String username, String skill, LocalDateTime submittedAt, double band) {
+    public HistoryTest(String id, String testID, String username, String skill, LocalDateTime submittedAt, double band) {
+        this.id = id;
         this.testID = testID;
         this.username = username;
         this.skill = skill;
         this.submittedAt = submittedAt;
         this.band = band;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getTestID() {

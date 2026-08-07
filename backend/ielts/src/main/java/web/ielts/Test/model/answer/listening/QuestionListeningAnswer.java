@@ -4,12 +4,22 @@ public class QuestionListeningAnswer {
     private String question;
     private String answer;
     private String studentAnswer;
+    private String explanation;
+
     public QuestionListeningAnswer() {
     }
+
     public QuestionListeningAnswer(String question, String answer, String studentAnswer) {
         this.question = question;
         this.answer = answer;
         this.studentAnswer = studentAnswer;
+    }
+
+    public QuestionListeningAnswer(String question, String answer, String studentAnswer, String explanation) {
+        this.question = question;
+        this.answer = answer;
+        this.studentAnswer = studentAnswer;
+        this.explanation = explanation;
     }
 
     public String getQuestion() {
@@ -36,12 +46,21 @@ public class QuestionListeningAnswer {
         this.studentAnswer = studentAnswer;
     }
 
+    public String getExplanation() {
+        return explanation;
+    }
+
+    public void setExplanation(String explanation) {
+        this.explanation = explanation;
+    }
+
     @Override
     public String toString() {
         return "QuestionAnswer{" +
                 "question='" + question + '\'' +
                 ", answer='" + answer + '\'' +
                 ", studentAnswer='" + studentAnswer + '\'' +
+                ", explanation='" + explanation + '\'' +
                 '}';
     }
 }

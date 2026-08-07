@@ -26,13 +26,13 @@ export function LatestTestsSection({ tests }: LatestTestsSectionProps) {
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {tests.map((test) => (
-                        <Card key={test.id} className="hover:shadow-lg transition-shadow">
+                    {tests.map((test, index) => (
+                        <Card key={test.testId || index} className="hover:shadow-lg transition-shadow">
                             <CardHeader>
                                 {/* Hiển thị tags dưới dạng Badge */}
                                 <div className="flex flex-wrap gap-2 mb-2">
-                                    {test.tags.map((tag) => (
-                                        <Badge key={tag} variant="outline" className="text-xs">
+                                    {test.tags.map((tag, tagIdx) => (
+                                        <Badge key={`${tag}-${tagIdx}`} variant="outline" className="text-xs">
                                             {tag}
                                         </Badge>
                                     ))}

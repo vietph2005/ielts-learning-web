@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, FileText, Mic, Volume2, Trophy, ChevronRight, TrendingUp } from "lucide-react"
 import { MainLayout } from "@/components/layout/MainLayout"
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -20,6 +21,8 @@ export default function FullTestResult() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening")
   const [results, setResults] = useState<any>({})
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalSkill, setModalSkill] = useState<string>("fulltest")
 
   useEffect(() => {
     if (!testAnswerId) return
@@ -154,14 +157,25 @@ export default function FullTestResult() {
               {/* Overall Score Card - Đã di chuyển vào đây */}
               {calculateOverallBand() !== null && (
                   <Card className="mx-auto bg-gradient-to-r from-green-200 to-green-100 text-gray-600 border-0 shadow-2xl">
-                    <CardContent className="p-8 text-center">
-                      <div className="flex items-center justify-center gap-4 mb-4">
-                        <Trophy className="w-8 h-8 text-yellow-300" />
+                    <CardContent className="p-8 text-center space-y-4">
+                      <div className="flex items-center justify-center gap-4">
+                        <Trophy className="w-8 h-8 text-yellow-500" />
                         <div>
                           <h2 className="text-2xl font-bold">Overall Band Score</h2>
                         </div>
                       </div>
-                      <div className="text-7xl font-extrabold mb-2 leading-none">{calculateOverallBand()} / 9.0</div>
+                      <div className="text-7xl font-extrabold leading-none">{calculateOverallBand()} / 9.0</div>
+                      <div className="pt-2">
+                        <Button
+                          onClick={() => {
+                            setModalSkill("fulltest");
+                            setIsModalOpen(true);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg"
+                        >
+                          🔍 Xem Chi Tiết Giải Thích Tất Cả Kỹ Năng
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
               )}
@@ -471,6 +485,14 @@ export default function FullTestResult() {
             </Card>
           </div>
         </div>
+
+        <DetailExplanationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          resultId={testAnswerId}
+          skill={modalSkill}
+          initialData={modalSkill === "fulltest" ? results : undefined}
+        />
       </MainLayout>
   )
 }

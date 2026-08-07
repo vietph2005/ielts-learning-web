@@ -3,6 +3,8 @@ import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {customFetch} from "@/components/sections/customFetch";
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
+
 export interface Question {
     question: string | null;
     answer: string | null;
@@ -51,6 +53,9 @@ export default function ReadingTest() {
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [_isSubmitted, setIsSubmitted] = useState(false);
     const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+    const [submittedResult, setSubmittedResult] = useState<any>(null);
+    const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { user } = useAuth();
     const navigate = useNavigate();
 

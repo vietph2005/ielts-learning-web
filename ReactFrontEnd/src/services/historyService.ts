@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 export interface TestHistory {
+  id?: string;
   testID: string;
   username: string;
   skill: 'listening' | 'reading' | 'writing' | 'speaking' | 'fulltest';

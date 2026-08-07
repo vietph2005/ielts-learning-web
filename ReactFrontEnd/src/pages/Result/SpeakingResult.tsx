@@ -158,11 +158,14 @@ const renderWordByWordHighlight = (
   );
 };
 
+import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
+
 export default function SpeakingResult() {
     const API_URL = import.meta.env.VITE_API_URL;
     const navigate = useNavigate()
     const [data, setData] = useState<SpeakingAnswer | null>(null)
     const [loading, setLoading] = useState(true)
+    const [isModalOpen, setIsModalOpen] = useState(false)
     const [activePart, setActivePart] = useState<"part1" | "part2" | "part3">("part1")
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
@@ -779,16 +782,22 @@ export default function SpeakingResult() {
                     ← Back to Full Test
                 </Button>
                 {/* Header Section - Matching the design */}
-                <div className="bg-green-600 rounded-2xl p-4 mb-6 text-white">
-                    <div className="text-center mb-4">
+                <div className="bg-green-600 rounded-2xl p-6 mb-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
                         <p className="text-green-100 text-xs font-medium mb-1 uppercase tracking-wide">FINAL SCORE</p>
-                        <h1 className="text-2xl font-bold mb-4">AI Examiner Evaluation</h1>
+                        <h1 className="text-2xl font-bold">AI Examiner Evaluation</h1>
                     </div>
-                    <div className="flex justify-center">
-                        <div className="bg-green-50 rounded-2xl p-3 text-center w-32">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-green-50 rounded-2xl p-3 text-center w-32 shadow">
                             <p className="text-green-600 text-xs font-medium mb-1">Overall Score</p>
                             <div className="text-3xl font-bold text-green-800 mb-1">{overallScore}</div>
                         </div>
+                        <Button
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-white text-green-700 hover:bg-green-50 font-bold px-4 py-3 rounded-xl shadow border border-green-200"
+                        >
+                            🔍 Xem Chi Tiết Pop-up
+                        </Button>
                     </div>
                 </div>
 
@@ -859,7 +868,24 @@ export default function SpeakingResult() {
                     {activePart === "part2" && renderPartContent(data.part2, true)}
                     {activePart === "part3" && renderPartContent(data.part3, false)}
                 </div>
+
+                <div className="flex justify-center mt-8 mb-4">
+                    <Button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg"
+                    >
+                        🔍 Xem Chi Tiết Giải Thích
+                    </Button>
+                </div>
             </div>
+
+            <DetailExplanationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                resultId={resultId}
+                skill="speaking"
+                initialData={data}
+            />
         </div>
     )
 }

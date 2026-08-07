@@ -41,6 +41,7 @@ public class HistoryService {
         
         List<HistoryTest> historyTests = answers.stream().map(answer -> {
             HistoryTest history = new HistoryTest();
+            history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("listening");
             history.setTestID(answer.getTestId());
@@ -58,6 +59,7 @@ public class HistoryService {
         
         List<HistoryTest> historyTests = answers.stream().map(answer -> {
             HistoryTest history = new HistoryTest();
+            history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("writing");
             history.setTestID(answer.getTestId());
@@ -75,6 +77,7 @@ public class HistoryService {
         
         List<HistoryTest> historyTests = answers.stream().map(answer -> {
             HistoryTest history = new HistoryTest();
+            history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("speaking");
             history.setTestID(answer.getTestId());
@@ -92,6 +95,7 @@ public class HistoryService {
         
         List<HistoryTest> historyTests = answers.stream().map(answer -> {
             HistoryTest history = new HistoryTest();
+            history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("reading");
             history.setTestID(answer.getTestId());
@@ -106,16 +110,11 @@ public class HistoryService {
         List<TestAnswer> answers = testAnswerService.getAllByUsername(username);
         List<HistoryTest> historyTests = answers.stream().map(answer -> {
             HistoryTest history = new HistoryTest();
+            history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("fulltest");
             history.setTestID(answer.getId());
-            // Band: lấy trung bình cộng các band của từng kỹ năng nếu có
-            double totalBand = 0;
-            int count = 0;
-            // Giả sử có thể lấy band từ các answerId (nếu null thì bỏ qua)
-            // Bạn có thể tối ưu lại đoạn này nếu có service lấy band theo answerId
-            // Ở đây chỉ demo, cần bổ sung lấy band thực tế
-            history.setBand(0); // TODO: Tính band thực tế
+            history.setBand(0);
             history.setSubmittedAt(answer.getSubmittedAt());
             return history;
         }).collect(java.util.stream.Collectors.toList());

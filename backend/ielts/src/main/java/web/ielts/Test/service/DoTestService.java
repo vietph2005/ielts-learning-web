@@ -103,6 +103,30 @@ public class DoTestService {
     }
 
     public ReadingAnswer saveReadingAnswer(ReadingAnswer answer) {
+        if (answer.getTestId() != null) {
+            Reading original = readingRepository.findByTestId(answer.getTestId());
+            if (original != null && original.getTasks() != null && answer.getTaskReadingAnswer() != null) {
+                for (int t = 0; t < Math.min(original.getTasks().size(), answer.getTaskReadingAnswer().size()); t++) {
+                    var origTask = original.getTasks().get(t);
+                    var ansTask = answer.getTaskReadingAnswer().get(t);
+                    if (origTask.getSections() != null && ansTask.getSections() != null) {
+                        for (int s = 0; s < Math.min(origTask.getSections().size(), ansTask.getSections().size()); s++) {
+                            var origSec = origTask.getSections().get(s);
+                            var ansSec = ansTask.getSections().get(s);
+                            if (origSec.getQuestions() != null && ansSec.getQuestions() != null) {
+                                for (int q = 0; q < Math.min(origSec.getQuestions().size(), ansSec.getQuestions().size()); q++) {
+                                    var origQ = origSec.getQuestions().get(q);
+                                    var ansQ = ansSec.getQuestions().get(q);
+                                    if ((ansQ.getExplanation() == null || ansQ.getExplanation().isEmpty()) && origQ.getExplanation() != null) {
+                                        ansQ.setExplanation(origQ.getExplanation());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         int totalQuestions = 0;
         int correctAnswers = 0;
@@ -142,6 +166,30 @@ public class DoTestService {
     }
 
     public ListeningAnswer saveListeningAnswer(ListeningAnswer answer) {
+        if (answer.getTestId() != null) {
+            Listening original = listeningRepository.findByTestId(answer.getTestId());
+            if (original != null && original.getTasks() != null && answer.getTasks() != null) {
+                for (int t = 0; t < Math.min(original.getTasks().size(), answer.getTasks().size()); t++) {
+                    var origTask = original.getTasks().get(t);
+                    var ansTask = answer.getTasks().get(t);
+                    if (origTask.getSections() != null && ansTask.getSections() != null) {
+                        for (int s = 0; s < Math.min(origTask.getSections().size(), ansTask.getSections().size()); s++) {
+                            var origSec = origTask.getSections().get(s);
+                            var ansSec = ansTask.getSections().get(s);
+                            if (origSec.getQuestions() != null && ansSec.getQuestions() != null) {
+                                for (int q = 0; q < Math.min(origSec.getQuestions().size(), ansSec.getQuestions().size()); q++) {
+                                    var origQ = origSec.getQuestions().get(q);
+                                    var ansQ = ansSec.getQuestions().get(q);
+                                    if ((ansQ.getExplanation() == null || ansQ.getExplanation().isEmpty()) && origQ.getExplanation() != null) {
+                                        ansQ.setExplanation(origQ.getExplanation());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         int totalQuestions = 0;
         int correctAnswers = 0;
