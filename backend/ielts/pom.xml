@@ -21,6 +21,8 @@
         <java.version>17</java.version>
         <cucumber.version>7.23.0</cucumber.version>
         <junit.version>5.10.0</junit.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <!-- BOM để đồng bộ version -->

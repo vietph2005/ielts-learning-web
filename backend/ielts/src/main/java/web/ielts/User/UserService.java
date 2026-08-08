@@ -51,10 +51,16 @@ public class UserService {
         System.out.println(latestTransaction.toString());
         int daysToAdd = getDaysFromType(latestTransaction.getType());
 
+        if (daysToAdd <= 0) {
+            throw new RuntimeException("Giao dịch không hợp lệ hoặc gói Premium không được hỗ trợ");
+        }
+
         user.setPremium(true);
-        user.setPremiumExpiry(LocalDateTime.now().plusDays(daysToAdd));
-
-
+        LocalDateTime currentExpiry = user.getPremiumExpiry();
+        LocalDateTime baseTime = (user.isPremium() && currentExpiry != null && currentExpiry.isAfter(LocalDateTime.now()))
+                ? currentExpiry
+                : LocalDateTime.now();
+        user.setPremiumExpiry(baseTime.plusDays(daysToAdd));
 
         userRepository.save(user);
     }

@@ -1,4 +1,4 @@
-package web.ielts.Auth;
+package web.ielts.Auth.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

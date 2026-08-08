@@ -113,7 +113,7 @@ public class HistoryService {
             history.setId(answer.getId());
             history.setUsername(answer.getUsername());
             history.setSkill("fulltest");
-            history.setTestID(answer.getId());
+            history.setTestID(answer.getTestId());
             history.setBand(0);
             history.setSubmittedAt(answer.getSubmittedAt());
             return history;

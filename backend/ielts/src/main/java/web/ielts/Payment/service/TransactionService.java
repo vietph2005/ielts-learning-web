@@ -42,19 +42,7 @@ public class TransactionService {
     }
 
     public List<PaymentTransactions> getUserTransactions(String email) {
-        List<PaymentTransactions> transactions = repository.findByEmailOrderByCreatedAtDesc(email);
-        return transactions.stream().map(tx -> {
-            PaymentTransactions transaction = new PaymentTransactions();
-            transaction.setEmail(tx.getEmail());
-            transaction.setType(tx.getType());
-            transaction.setAmount(tx.getAmount());
-            transaction.setPaymentMethod(tx.getPaymentMethod());
-            transaction.setStatus(tx.getStatus());
-            transaction.setMessage(tx.getMessage());
-            transaction.setTransactionId(tx.getTransactionId());
-            transaction.setCreatedAt(tx.getCreatedAt());
-            return transaction;
-        }).collect(Collectors.toList());
+        return repository.findByEmailOrderByCreatedAtDesc(email);
     }
 
 

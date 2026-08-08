@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import web.ielts.Auth.CustomOAuth2SuccessHandler;
+import web.ielts.Auth.service.CustomOAuth2SuccessHandler;
 import web.ielts.Auth.repository.AuthRepository;
 import web.ielts.User.User;
 

@@ -11,11 +11,11 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.web.SecurityFilterChain;
 
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import web.ielts.Auth.CustomOAuth2SuccessHandler;
+import web.ielts.Auth.service.CustomOAuth2SuccessHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import web.ielts.Auth.RoleCaptureFilter;
+import web.ielts.Auth.service.RoleCaptureFilter;
 
 import java.util.Arrays;
 

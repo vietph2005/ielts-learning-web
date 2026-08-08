@@ -11,7 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import web.ielts.Auth.JwtToken;
+import web.ielts.Auth.service.JwtToken;
 import web.ielts.User.CustomUserDetailsService;
 
 

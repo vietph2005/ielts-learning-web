@@ -4,8 +4,6 @@ package web.ielts.Auth.service;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -16,7 +14,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
-import web.ielts.Auth.JwtToken;
 import web.ielts.Auth.model.VerificationToken;
 import web.ielts.Auth.repository.VerificationTokenRepository;
 import web.ielts.Auth.repository.AuthRepository;
@@ -24,7 +21,7 @@ import web.ielts.Config.EmailConfig;
 import web.ielts.Config.EmailForgetPasswordConfig;
 import web.ielts.User.User;
 
-import static web.ielts.Auth.JwtToken.*;
+import static web.ielts.Auth.service.JwtToken.*;
 
 @Component
 public class AuthService {
@@ -128,10 +125,10 @@ public class AuthService {
 
     public ResponseEntity<?> verifyEmail(String token) {
         VerificationToken verificationToken = tokenRepository.findByToken(token);
-        System.out.println(verificationToken.toString());
         if (verificationToken == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token không hợp lệ");
         }
+        System.out.println(verificationToken.toString());
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token đã hết hạn");

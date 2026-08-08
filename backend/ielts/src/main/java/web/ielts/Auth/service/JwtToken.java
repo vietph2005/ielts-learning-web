@@ -1,5 +1,5 @@
 
-package web.ielts.Auth;
+package web.ielts.Auth.service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;

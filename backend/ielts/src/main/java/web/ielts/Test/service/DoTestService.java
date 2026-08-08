@@ -145,17 +145,7 @@ public class DoTestService {
         answer.setTotalQuestions(totalQuestions);
         answer.setTotalCorrect(correctAnswers);
 
-        double percent = totalQuestions == 0 ? 0.0 : (double) correctAnswers / totalQuestions;
-
-        double band;
-        if (percent >= 0.9) band = 9;
-        else if (percent >= 0.85) band = 8;
-        else if (percent >= 0.8) band = 7.5;
-        else if (percent >= 0.7) band = 7;
-        else if (percent >= 0.6) band = 6;
-        else if (percent >= 0.5) band = 5;
-        else band = 4;
-
+        double band = calculateIeltsBand(correctAnswers, totalQuestions);
         answer.setBand(band);
 
         if (answer.getSubmittedAt() == null) {
@@ -208,17 +198,7 @@ public class DoTestService {
         answer.setTotalQuestions(totalQuestions);
         answer.setTotalCorrect(correctAnswers);
 
-        double percent = totalQuestions == 0 ? 0.0 : (double) correctAnswers / totalQuestions;
-
-        double band;
-        if (percent >= 0.9) band = 9;
-        else if (percent >= 0.85) band = 8;
-        else if (percent >= 0.8) band = 7.5;
-        else if (percent >= 0.7) band = 7;
-        else if (percent >= 0.6) band = 6;
-        else if (percent >= 0.5) band = 5;
-        else band = 4;
-
+        double band = calculateIeltsBand(correctAnswers, totalQuestions);
         answer.setBand(band);
 
         if (answer.getSubmittedAt() == null) {
@@ -241,6 +221,39 @@ public class DoTestService {
                 return correctAnswer.charAt(0) == studentAnswer.charAt(0);
             default:
                 return correctAnswer.equals(studentAnswer);
+        }
+    }
+
+    private double calculateIeltsBand(int correctAnswers, int totalQuestions) {
+        if (totalQuestions == 0) return 0.0;
+        int scaled = (int) Math.round(((double) correctAnswers / totalQuestions) * 40);
+        if (scaled >= 39) return 9.0;
+        if (scaled >= 37) return 8.5;
+        if (scaled >= 35) return 8.0;
+        if (scaled >= 32) return 7.5;
+        if (scaled >= 30) return 7.0;
+        if (scaled >= 27) return 6.5;
+        if (scaled >= 23) return 6.0;
+        if (scaled >= 19) return 5.5;
+        if (scaled >= 15) return 5.0;
+        if (scaled >= 13) return 4.5;
+        if (scaled >= 10) return 4.0;
+        if (scaled >= 7)  return 3.5;
+        if (scaled >= 5)  return 3.0;
+        if (scaled >= 3)  return 2.5;
+        if (scaled >= 1)  return 2.0;
+        return 1.0;
+    }
+
+    private double calculateIeltsRounding(double average) {
+        double wholePart = Math.floor(average);
+        double decimalPart = average - wholePart;
+        if (decimalPart >= 0.75) {
+            return wholePart + 1.0;
+        } else if (decimalPart >= 0.25) {
+            return wholePart + 0.5;
+        } else {
+            return wholePart;
         }
     }
 
@@ -323,6 +336,37 @@ public class DoTestService {
                 }
             }
         }
+
+        // Tính điểm tổng kết cho Writing (Task 1 + Task 2 hệ số 2)
+        double score1 = 0;
+        double score2 = 0;
+        boolean hasScore1 = false;
+        boolean hasScore2 = false;
+
+        var task1 = savedAnswer.getTask1();
+        if (task1 != null && task1.getScore() != null && !task1.getScore().trim().isEmpty()) {
+            try {
+                score1 = Double.parseDouble(task1.getScore().trim());
+                hasScore1 = true;
+            } catch (NumberFormatException ignored) {}
+        }
+        var task2 = savedAnswer.getTask2();
+        if (task2 != null && task2.getScore() != null && !task2.getScore().trim().isEmpty()) {
+            try {
+                score2 = Double.parseDouble(task2.getScore().trim());
+                hasScore2 = true;
+            } catch (NumberFormatException ignored) {}
+        }
+
+        if (hasScore1 && hasScore2) {
+            double rawBand = (score1 + score2 * 2.0) / 3.0;
+            savedAnswer.setBand(calculateIeltsRounding(rawBand));
+        } else if (hasScore2) {
+            savedAnswer.setBand(score2);
+        } else if (hasScore1) {
+            savedAnswer.setBand(score1);
+        }
+
         return writingAnswerRepository.save(savedAnswer);
     }
 
@@ -383,7 +427,6 @@ public class DoTestService {
                         qa.setScore(averageForThisQuestion);
                         validQuestionCount++;
                         totalScore += averageForThisQuestion;
-                        validQuestionCount++; // ✅ Thêm dòng này
 
                     } catch (Exception e) {
                         System.err.println("Lỗi khi chấm câu hỏi: " + qa.getQuestion());
@@ -533,7 +576,7 @@ public class DoTestService {
 
         }
         double band = part1Score + part2Score + part3Score;
-        double avgBand = Math.round((band / 3.0) * 2) / 2.0;
+        double avgBand = calculateIeltsRounding(band / 3.0);
         speakingAnswer.setBand(avgBand);
     }
     private String extractFileName(String blobUrl) {

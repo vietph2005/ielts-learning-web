@@ -35,10 +35,26 @@ public class DashboardService {
                 AggregatedStudent student = studentMap.getOrDefault(username, new AggregatedStudent(username));
 
                 switch (collection) {
-                    case "ListeningAnswer" -> student.setBandListening(result.getBand());
-                    case "ReadingAnswer" -> student.setBandReading(result.getBand());
-                    case "SpeakingAnswer" -> student.setBandSpeaking(result.getBand());
-                    case "WritingAnswer" -> student.setBandWriting(result.getBand());
+                    case "ListeningAnswer" -> {
+                        if (student.getBandListening() == null || result.getBand() > student.getBandListening()) {
+                            student.setBandListening(result.getBand());
+                        }
+                    }
+                    case "ReadingAnswer" -> {
+                        if (student.getBandReading() == null || result.getBand() > student.getBandReading()) {
+                            student.setBandReading(result.getBand());
+                        }
+                    }
+                    case "SpeakingAnswer" -> {
+                        if (student.getBandSpeaking() == null || result.getBand() > student.getBandSpeaking()) {
+                            student.setBandSpeaking(result.getBand());
+                        }
+                    }
+                    case "WritingAnswer" -> {
+                        if (student.getBandWriting() == null || result.getBand() > student.getBandWriting()) {
+                            student.setBandWriting(result.getBand());
+                        }
+                    }
                 }
 
                 studentMap.put(username, student);
