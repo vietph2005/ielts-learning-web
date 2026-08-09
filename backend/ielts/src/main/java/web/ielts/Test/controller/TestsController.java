@@ -22,7 +22,6 @@ import web.ielts.Test.service.AI.ProsodyService;
 import web.ielts.Test.service.AI.AIService;
 import web.ielts.Test.service.TestService;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 public class TestsController {

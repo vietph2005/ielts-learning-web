@@ -11,7 +11,6 @@ import web.ielts.Report.service.ReportService;
 
 @RestController
 @RequestMapping("/api/report")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class ReportController {
 
     private final ReportService reportService;

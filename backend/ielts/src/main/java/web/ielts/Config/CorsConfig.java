@@ -1,5 +1,6 @@
 package web.ielts.Config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -8,16 +9,20 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig {
 
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
+
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                String[] origins = (allowedOrigins != null && !allowedOrigins.trim().isEmpty())
+                        ? allowedOrigins.split(",")
+                        : new String[]{"https://www.languages.io.vn", "http://localhost:5173"};
+
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "https://www.languages.io.vn",  // production domain
-                                "http://localhost:5173"          // dev mode
-                        )
+                        .allowedOrigins(origins)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);

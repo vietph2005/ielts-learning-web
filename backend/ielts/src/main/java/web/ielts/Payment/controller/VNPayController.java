@@ -19,7 +19,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vn-pay")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class VNPayController {
 
     @Autowired

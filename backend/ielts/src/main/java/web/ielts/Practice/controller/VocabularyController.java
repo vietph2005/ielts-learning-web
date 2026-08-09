@@ -10,7 +10,6 @@ import web.ielts.Practice.service.VocabularyService;
 import java.util.List;
 import java.util.Optional;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/practice/vocabulary")
 public class VocabularyController {

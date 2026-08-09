@@ -10,7 +10,6 @@ import web.ielts.Test.service.DoTestService;
 import java.util.ArrayList;
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 public class HistoryController {

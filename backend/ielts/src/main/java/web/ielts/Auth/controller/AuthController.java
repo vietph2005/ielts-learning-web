@@ -18,7 +18,6 @@ import web.ielts.Auth.dto.AuthDTO;
 import web.ielts.Auth.service.AuthService;
 import web.ielts.User.User;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 public class AuthController {

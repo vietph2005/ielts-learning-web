@@ -10,7 +10,6 @@ import web.ielts.Test.model.answer.writing.WritingAnswer;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/verify")
 public class DoTestTeacherController {
