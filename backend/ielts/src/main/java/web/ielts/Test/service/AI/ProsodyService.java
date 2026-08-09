@@ -9,6 +9,7 @@
     import org.springframework.http.ResponseEntity;
     import org.springframework.stereotype.Service;
     import org.springframework.web.client.RestTemplate;
+    import jakarta.annotation.PostConstruct;
     import web.ielts.Test.model.answer.speaking.*;
 
 
@@ -30,12 +31,23 @@
     public class ProsodyService {
 
 
-        private final String PRAAT_PATH = "D:\\praat6438_win-intel64\\Praat.exe";
-        private final String PRAAT_SCRIPT_PATH = "D:\\SWP_Project4\\backend\\ielts\\src\\main\\java\\web\\ielts\\Test\\script.praat"; // Script Praat
-        private final String STRESS_ANALYSIS_SCRIPT_PATH = "D:\\SWP_Project4\\backend\\ielts\\src\\main\\java\\web\\ielts\\Test\\stressAnalysis.praat";
-        private final String INTONATION_SCRIPT_PATH = "D:\\SWP_Project4\\backend\\ielts\\src\\main\\java\\web\\ielts\\Test\\script_intonation.praat";
-        private final String CMU_DICT_PATH = "D:\\archive\\cmudict-0.7b.txt";
-        private final String GET_DURATION = "D:\\SWP_Project4\\backend\\ielts\\src\\main\\java\\web\\ielts\\Test\\GetDuration.praat";
+        @Value("${app.praat.path}")
+        private String PRAAT_PATH;
+
+        @Value("${app.praat.script-path}")
+        private String PRAAT_SCRIPT_PATH;
+
+        @Value("${app.praat.stress-analysis-script-path}")
+        private String STRESS_ANALYSIS_SCRIPT_PATH;
+
+        @Value("${app.praat.intonation-script-path}")
+        private String INTONATION_SCRIPT_PATH;
+
+        @Value("${cmudict.file.path}")
+        private String CMU_DICT_PATH;
+
+        @Value("${app.praat.get-duration-script-path}")
+        private String GET_DURATION;
 
 
         @Value("${openai.api.key}")
@@ -48,6 +60,10 @@
 
 
         public ProsodyService() {
+        }
+
+        @PostConstruct
+        public void init() {
             loadCmuDict();
         }
 
