@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 ""// src/pages/Vocabulary.tsx
 
 import React, { useEffect, useState } from 'react';
@@ -35,7 +36,7 @@ const Vocabulary: React.FC = () => {
     const [editData, setEditData] = useState<VocabularyType | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const API_BASE = `${API_URL}/api/practice`;
 
     useEffect(() => {

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line, AreaChart, Area } from "recharts";
@@ -34,7 +35,7 @@ export default function TransactionPage() {
   const [statType, setStatType] = useState<StatType>("month");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const API_URL = import.meta.env.VITE_API_URL;
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 

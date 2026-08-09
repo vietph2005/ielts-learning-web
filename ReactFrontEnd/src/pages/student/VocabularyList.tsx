@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Vocabulary as VocabularyType } from '@/lib/type';
@@ -23,7 +24,8 @@ const VocabularyList: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
     const [selectedVocab, setSelectedVocab] = useState<VocabularyType | null>(null);
-    const API_BASE = 'http://localhost:8080/api/practice';
+    
+    const API_BASE = `${API_URL}/api/practice`;
     const navigate = useNavigate();
     const [gameModalOpen, setGameModalOpen] = useState(false);
     const openGameModal = () => setGameModalOpen(true);

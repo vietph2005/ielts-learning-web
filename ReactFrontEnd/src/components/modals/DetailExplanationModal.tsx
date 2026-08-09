@@ -1,9 +1,10 @@
+import { API_URL } from "@/config/api";
 import React, { useEffect, useState } from "react";
 import { X, CheckCircle, XCircle, BookOpen, Headphones, Volume2, FileText, Mic, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
 
 interface DetailExplanationModalProps {
   isOpen: boolean;

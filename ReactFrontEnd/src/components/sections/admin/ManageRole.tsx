@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ export default function ManageRole({ role }: { role: RoleType }) {
     const [newRole, setNewRole] = useState<RoleType | "">("");
     const [actionType, setActionType] = useState<"add" | "update" | "delete" | "">("");
     const [searchEmail, setSearchEmail] = useState<string>("");
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const loadUsers = () => {
         fetch(`${API_URL}/getuser/${role}`)
             .then(res => {

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Headphones, Book, PenLine, Mic } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +31,7 @@ function TipPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    
 
     const skills: SkillInfo[] = [
         {

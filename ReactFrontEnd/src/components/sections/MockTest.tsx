@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen } from 'lucide-react';
@@ -19,7 +20,7 @@ interface MockTestProps {
     selectedSkill: 'Listening' | 'Reading' | 'Writing' | 'Speaking' | 'All Skills';
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 // Sử dụng function component bình thường
 function MockTest({ selectedSkill = 'All Skills' }: MockTestProps) {

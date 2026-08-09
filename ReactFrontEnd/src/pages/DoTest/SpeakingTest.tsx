@@ -1,4 +1,5 @@
 "use client"
+import { API_URL } from "@/config/api";
 
 import { useEffect, useRef, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,7 +22,7 @@ import {
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
 import {Label} from "@/components/ui/label";
 
-const API_URL = import.meta.env.VITE_API_URL || 'VITE_API_URL=http://api.languages.io.vn:8080';
+
 
 type Speaking = {
     _id: string

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { BookOpen, Mail } from "lucide-react";
 import { useLocation } from "react-router-dom";
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 const ForgetPasswordPage = () => {
     const [email, setEmail] = useState("");

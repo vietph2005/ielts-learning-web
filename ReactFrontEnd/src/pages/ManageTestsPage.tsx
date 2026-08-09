@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Edit, FileText, CheckCircle, Clock } from 'lucide-react';
@@ -18,7 +19,7 @@ export default function ManageTestsPage() {
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved'>('all');
 
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL;
+  
 
   useEffect(() => {
     fetchTests();

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,7 +34,7 @@ const RegisterPage = () => {
     };
 
     const handleGoogleSignup = () => {
-        const API_URL = import.meta.env.VITE_API_URL;
+        
         window.location.href = `${API_URL}/oauth2/authorization/google?role=student`;
     };
 

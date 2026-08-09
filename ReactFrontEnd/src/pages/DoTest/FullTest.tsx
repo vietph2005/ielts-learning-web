@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/config/api";
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -10,7 +11,7 @@ import {Lightbulb, Monitor} from "lucide-react";
 import type { Test } from "@/types/apiTypes";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 
 export default function FullTest() {

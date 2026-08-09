@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import {useEffect, useState} from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,7 +37,7 @@ const typeColors: TypeColors = {
 };
 
 export default function ReviewReport() {
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const [reports, setReports] = useState<Report[]>([])
     const [filteredReports, setFilteredReports] = useState<Report[]>([])
     const [loading, setLoading] = useState(true)

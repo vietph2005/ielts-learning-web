@@ -24,8 +24,8 @@ export function TipsSection({ tips }: TipsSectionProps) {
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {tipsArray.map((tip) => (
-                        <Card key={tip.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                    {tipsArray.map((tip, index) => (
+                        <Card key={tip.testId || index} className="hover:shadow-lg transition-shadow cursor-pointer">
                             <CardHeader>
                                 <Badge variant="outline" className="w-fit mb-2">
                                     {tip.skill}

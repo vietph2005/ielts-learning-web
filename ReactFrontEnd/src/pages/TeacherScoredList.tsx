@@ -1,4 +1,5 @@
 "use client"
+import { API_URL } from "@/config/api";
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ interface WritingResult {
 }
 
 export default function TeacherScoredList() {
+    
     const [data, setData] = useState<WritingResult[]>([])
     const [filteredData, setFilteredData] = useState<WritingResult[]>([])
     const [searchTerm, setSearchTerm] = useState("")
@@ -98,7 +100,7 @@ export default function TeacherScoredList() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch("http://localhost:8080/verify/allwriting", {
+                const res = await fetch(`${API_URL}/verify/allwriting`, {
                     credentials: "include", // nếu backend yêu cầu
                 });
                 if (!res.ok) throw new Error("Failed to fetch");

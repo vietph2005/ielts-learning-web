@@ -17,8 +17,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { validateWordLimit } from "@/lib/utils";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "@/config/api";
 
 interface WritingTask {
     type: string;
@@ -32,6 +31,7 @@ interface WritingData {
 }
 
 export default function WritingTest() {
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const { user } = useAuth();
     const { testId } = useParams<{ testId: string }>();
     const [searchParams] = useSearchParams();
@@ -213,7 +213,7 @@ export default function WritingTest() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div ref={containerRef} className="min-h-screen bg-gray-50">
             {/* Overlay loading khi đang chấm điểm AI */}
             {isGrading && (
                 <div

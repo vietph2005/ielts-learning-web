@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from 'axios';
@@ -311,7 +312,7 @@ export default function RequestTestDetailPage() {
     const [showDebug, setShowDebug] = useState(false);
 
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     useEffect(() => {
       if (!testId) {
         setStatus('error');

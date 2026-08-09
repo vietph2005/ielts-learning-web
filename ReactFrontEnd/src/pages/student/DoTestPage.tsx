@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -10,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 interface DoTestPageProps {}
 
 const DoTestPage: React.FC<DoTestPageProps> = () => {
+    
     const { testId } = useParams<{ testId: string }>();
     const [loading, setLoading] = useState(true);
     const [testData, setTestData] = useState<any>(null);
@@ -17,7 +19,7 @@ const DoTestPage: React.FC<DoTestPageProps> = () => {
     useEffect(() => {
         const fetchFullTest = async () => {
             try {
-                const res = await axios.get(`http://localhost:8080/verify/fulltest/${testId}`, {
+                const res = await axios.get(`${API_URL}/verify/fulltest/${testId}`, {
                     withCredentials: true,
                 });
                 setTestData(res.data);

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useState, useEffect, useRef } from "react";
 import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -77,7 +78,7 @@ export default function ReadingTest() {
         localStorage.setItem("darkMode", isDarkMode ? "true" : "false");
     }, [isDarkMode]);
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    
 
     useEffect(() => {
         const fetchData = async () => {

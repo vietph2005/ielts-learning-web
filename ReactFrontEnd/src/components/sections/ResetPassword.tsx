@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ const ResetPassword = () => {
     const token = searchParams.get("token");
     const redirectURL = searchParams.get("redirectURL"); // "/login"
     console.log(redirectURL)
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const navigate = useNavigate();
     const validate = () => {
         let hasError = false;

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { HeroSection } from "@/components/sections/HeroSection"
 import { LatestTestsSection } from "@/components/sections/LatestTestsSection"
 import { TipsSection } from "@/components/sections/TipsSection"
@@ -26,7 +27,7 @@ export function HomePage() {
     const [chatHistory, setChatHistory] = useState<{role: "user"|"ai", text: string}[]>([]);
     const [loading, setLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     useEffect(() => {
         fetch(`${API_URL}/api/3-tests`)
             .then(res => res.json())

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_URL } from "@/config/api";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,7 @@ const ManagerLogin  = () => {
         // If no errors, proceed login
         if (!emailMsg && !passwordMsg) {
             try {
-                await login(email, password);
+                await login(email, password, "manager");
                 navigate("/staff-page");
             } catch (error) {
                 alert("Login failed");
@@ -75,7 +76,6 @@ const ManagerLogin  = () => {
     };
 
     const handleGoogleLogin = () => {
-        const API_URL = import.meta.env.VITE_API_URL;
         window.location.href = `${API_URL}/oauth2/authorization/google?role=manager`;
     };
 

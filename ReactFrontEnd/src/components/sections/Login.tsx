@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +67,7 @@ const LoginPage = () => {
       }
     }
   };
-  const API_URL = import.meta.env.VITE_API_URL;
+  
   const handleGoogleLogin = () => {
     window.location.href = `${API_URL}/oauth2/authorization/google?role=${role}`;
   };

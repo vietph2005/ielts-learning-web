@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import {
@@ -34,6 +35,7 @@ interface StudentResult {
 }
 
 const DashboardPage = () => {
+    
     const [top10, setTop10] = useState<StudentResult[]>([]);
     const [top3BySkill, setTop3BySkill] = useState<Record<string, StudentResult[]>>({});
 
@@ -41,13 +43,13 @@ const DashboardPage = () => {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        axios.get("http://localhost:8080/api/dashboard/top10", { headers })
+        axios.get(`${API_URL}/api/dashboard/top10`, { headers })
             .then((res) => {
                 setTop10(res.data);
             })
             .catch((err) => console.error("Error fetching top 10:", err));
 
-        axios.get("http://localhost:8080/api/dashboard/top3-skills", { headers })
+        axios.get(`${API_URL}/api/dashboard/top3-skills`, { headers })
             .then((res) => setTop3BySkill(res.data))
             .catch((err) => console.error("Error fetching top 3 by skill:", err));
     }, []);

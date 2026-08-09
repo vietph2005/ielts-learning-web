@@ -1,5 +1,6 @@
+import { API_URL } from "@/config/api";
 export async function askAI(question: string, chatHistory: {role: "user"|"ai", text: string}[]): Promise<string> {
-  const API_URL = import.meta.env.VITE_API_URL;
+  
   try {
     // Convert chatHistory to OpenAI format (role: user/assistant)
     const messages = chatHistory.map(m => ({

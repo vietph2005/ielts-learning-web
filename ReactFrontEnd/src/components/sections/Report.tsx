@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -16,7 +17,7 @@ interface FeedbackModalProps {
     onClose: () => void
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 export default function Report({ isOpen, onClose }: FeedbackModalProps) {
     const { user } = useAuth()

@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default function ManageStudentsPage() {
   const [editing, setEditing] = useState<UserDTO | null>(null);
   const [editData, setEditData] = useState<Partial<UserDTO>>({});
   const [_loading, setLoading] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL;
+  
 
   const fetchUsers = async () => {
     setLoading(true);

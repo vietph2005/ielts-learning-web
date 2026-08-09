@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -26,7 +27,7 @@ interface ProfileDto {
     phone: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 export default function EditProfile({ isOpen, onClose }: EditProfileProps) {
     const { user } = useAuth()

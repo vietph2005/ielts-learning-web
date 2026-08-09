@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react"
 import { ChevronDown, ChevronUp, Award, FileText, MessageSquare, BookOpen, Target, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -61,7 +62,7 @@ interface TaskWritingAnswer {
     sampleAnswer: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 export default function WritingResult() {
     const [data, setData] = useState<WritingAnswer | null>(null);

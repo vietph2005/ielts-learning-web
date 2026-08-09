@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ interface WritingAnswer {
 
 function ManagerTeacherScoreList() {
     const [writingAnswers, setWritingAnswers] = useState<WritingAnswer[]>([]);
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     useEffect(() => {
         fetch(`${API_URL}/verify/listwriting`, {
             credentials: "include",

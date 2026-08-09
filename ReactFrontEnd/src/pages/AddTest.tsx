@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import type { FC } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import type { Test, WritingTask } from '@/types/apiTypes';
@@ -31,7 +32,7 @@ const skillTabs = [
 
 type Skill = typeof skillTabs[number]['id'];
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 const AddTest: FC = () => {
   const { testId: routeTestId } = useParams<{ testId?: string }>();

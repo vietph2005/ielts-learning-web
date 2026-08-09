@@ -1,5 +1,5 @@
 export const customFetch = (url: string, options: RequestInit = {}) => {
-    const excludeUrls = [
+    const excludeUrls: string[] = [
 
     ];
 

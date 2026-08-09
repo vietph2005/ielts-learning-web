@@ -1,4 +1,5 @@
 "use client"
+import { API_URL } from "@/config/api";
 
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
@@ -10,7 +11,7 @@ import { BookOpen, FileText, Mic, Volume2, Trophy, ChevronRight, TrendingUp } fr
 import { MainLayout } from "@/components/layout/MainLayout"
 import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal"
 
-const API_URL = import.meta.env.VITE_API_URL
+
 
 export default function FullTestResult() {
   const { testId } = useParams<{ testId: string }>()
@@ -489,7 +490,7 @@ export default function FullTestResult() {
         <DetailExplanationModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          resultId={testAnswerId}
+          resultId={testAnswerId || undefined}
           skill={modalSkill}
           initialData={modalSkill === "fulltest" ? results : undefined}
         />

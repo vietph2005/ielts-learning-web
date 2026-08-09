@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
@@ -76,7 +77,7 @@ export default function ListeningTest() {
         setIsDarkMode((prev) => !prev);
     };
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    
 
     // Fetch dữ liệu test listening
     useEffect(() => {

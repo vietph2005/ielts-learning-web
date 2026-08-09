@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 // IELTS Premium Page with VNPay Payment Integration
 import {useEffect, useState} from "react"
 import {
@@ -23,7 +24,7 @@ type Plan = {
     description: string[];
 };
 
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 function formatPremiumRemainingTime(premiumExpiry: string | null): string {
     if (!premiumExpiry) return "Premium đã hết hạn";

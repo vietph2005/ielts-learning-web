@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_URL } from "@/config/api";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,6 @@ const LoginAdmin = () => {
     const [password, setPassword] = useState("");
     const [emailError, setEmailError] = useState("");
     const [passwordError, setPasswordError] = useState("");
-    const API_URL = import.meta.env.VITE_API_URL;
     const navigate = useNavigate();
     const { login } = useAuth();
 
@@ -65,7 +65,7 @@ const LoginAdmin = () => {
         // If no errors, proceed login
         if (!emailMsg && !passwordMsg) {
             try {
-                await login(email, password);
+                await login(email, password, "admin");
                 navigate("/admin-page");
             } catch (error) {
                 alert("Login failed");

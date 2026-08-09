@@ -3,7 +3,7 @@ import type { AuthContextType, User } from "@/types/apiTypes";
 import * as authService from "@/services/authService";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const API_URL = import.meta.env.VITE_API_URL || 'VITE_API_URL=http://api.languages.io.vn:8080';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true); // Trạng thái loading ban đầu

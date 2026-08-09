@@ -1,4 +1,5 @@
 "use client"
+import { API_URL } from "@/config/api";
 
 import { useEffect, useState } from "react"
 import {
@@ -161,7 +162,7 @@ const renderWordByWordHighlight = (
 import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 
 export default function SpeakingResult() {
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const navigate = useNavigate()
     const [data, setData] = useState<SpeakingAnswer | null>(null)
     const [loading, setLoading] = useState(true)

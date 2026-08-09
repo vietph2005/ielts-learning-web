@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import { useEffect, useState } from "react";
 import { customFetch } from "@/components/sections/customFetch";
 import React from "react";
@@ -11,7 +12,7 @@ interface User {
     role: string;
     originalEmail?: string;
 }
-const API_URL = import.meta.env.VITE_API_URL;
+
 
 export default function ManageUsersTable({ role }: ManageUsersTableProps) {
     const [users, setUsers] = useState<User[]>([]);

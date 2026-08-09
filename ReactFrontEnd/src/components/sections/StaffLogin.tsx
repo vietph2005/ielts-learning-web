@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import React, { useState } from "react";
 import {Link, useNavigate} from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ function StaffLogin() {
 const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      await login(email, password, "teacher");
       navigate("/staff-page");
     } catch (error) {
       alert("Login failed");
@@ -24,7 +25,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   };
 
  const handleGoogleLogin = () => {
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     window.location.href = `${API_URL}/oauth2/authorization/google?role=teacher`;
   };
 

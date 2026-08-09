@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import {useEffect, useState} from "react";
 import { useParams } from "react-router-dom";
 import {Button} from "@/components/ui/button.tsx";
@@ -15,7 +16,7 @@ interface TipDetail {
 }
 
 function TipDetail() {
-    const API_URL = import.meta.env.VITE_API_URL;
+    
     const { skill, id } = useParams<{ skill: string; id: string }>();
     const [detail, setDetail] = useState<TipDetail | null>(null);
 

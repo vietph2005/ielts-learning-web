@@ -1,4 +1,5 @@
 "use client"
+import { API_URL } from "@/config/api";
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
@@ -12,7 +13,7 @@ export default function VerifyEmail() {
   const [isSuccess, setIsSuccess] = useState<boolean | null>(null)
   const token = searchParams.get("token")
   const navigate = useNavigate()
-  const API_URL = import.meta.env.VITE_API_URL
+  
 
   useEffect(() => {
     const verify = async () => {

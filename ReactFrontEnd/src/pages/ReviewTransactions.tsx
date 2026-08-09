@@ -1,3 +1,4 @@
+import { API_URL } from "@/config/api";
 import {useEffect, useState} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -85,7 +86,7 @@ export default function TransactionHistory() {
     },
     {} as Record<string, number>,
   )
-    const API_URL = import.meta.env.VITE_API_URL;
+    
   useEffect(() => {
     fetch(`${API_URL}/api/payment/transactions`, { credentials: "include" })
         .then((res) => res.json())
