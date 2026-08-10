@@ -1,20 +1,16 @@
 package web.ielts.User;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-
+import java.time.LocalDateTime;
 import java.util.List;
 
-@Document(collection = "user")
 public class UserDTO {
-
 
     private List<String> roles;
     private String firstName;
     private String lastName;
-    @Id
     private String email;
     private boolean premium;
+    private LocalDateTime premiumExpiry;
     private String birthDate;
     private String gender;
     private String phone;
@@ -23,6 +19,31 @@ public class UserDTO {
     private String timeZone;
     private String cuurency;
     private String userName;
+
+    public UserDTO() {
+    }
+
+    public UserDTO(User user) {
+        if (user != null) {
+            this.userName = user.getEmail();
+            this.email = user.getEmail();
+            this.firstName = user.getFirstName();
+            this.lastName = user.getLastName();
+            this.roles = user.getRole();
+            this.premium = user.isPremium();
+            this.premiumExpiry = user.getPremiumExpiry();
+            this.birthDate = user.getBirthDate();
+            this.gender = user.getGender();
+            this.phone = user.getPhone();
+            this.createdAt = user.getCreatedAt();
+        }
+    }
+
+    public UserDTO(String email, List<String> roles) {
+        this.email = email;
+        this.userName = email;
+        this.roles = roles;
+    }
 
     public UserDTO(List<String> roles, String firstName, String lastName, String email, boolean premium, String birthDate, String gender, String phone, String createdAt, String country, String timeZone, String cuurency, String userName) {
         this.roles = roles;
@@ -38,6 +59,10 @@ public class UserDTO {
         this.timeZone = timeZone;
         this.cuurency = cuurency;
         this.userName = userName;
+    }
+
+    public List<String> getRoles() {
+        return roles;
     }
 
     public void setRoles(List<String> roles) {
@@ -60,6 +85,10 @@ public class UserDTO {
         this.lastName = lastName;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
     public void setEmail(String email) {
         this.email = email;
     }
@@ -70,6 +99,14 @@ public class UserDTO {
 
     public void setPremium(boolean premium) {
         this.premium = premium;
+    }
+
+    public LocalDateTime getPremiumExpiry() {
+        return premiumExpiry;
+    }
+
+    public void setPremiumExpiry(LocalDateTime premiumExpiry) {
+        this.premiumExpiry = premiumExpiry;
     }
 
     public String getBirthDate() {
@@ -135,21 +172,4 @@ public class UserDTO {
     public void setUserName(String userName) {
         this.userName = userName;
     }
-
-    public UserDTO(String email, List<String> roles) {
-        this.email = email;
-        this.roles = roles;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public List<String> getRoles() {
-        return roles;
-    }
-    public UserDTO() {
-    }
-
-
 }

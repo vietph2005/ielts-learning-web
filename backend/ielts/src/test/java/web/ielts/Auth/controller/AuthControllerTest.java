@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import web.ielts.Auth.dto.AuthDTO;
+import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.service.AuthService;
 import web.ielts.User.User;
 
@@ -58,7 +59,7 @@ public class AuthControllerTest {
         registerRequest.put("role", List.of("student"));
 
         doReturn(ResponseEntity.ok("SUCCESS"))
-                .when(authService).register(any(User.class));
+                .when(authService).register(any(RegisterDTO.class));
 
         String response = mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)

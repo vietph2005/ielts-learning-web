@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.test.util.ReflectionTestUtils;
 import web.ielts.Auth.service.CustomOAuth2SuccessHandler;
 import web.ielts.Auth.repository.AuthRepository;
 import web.ielts.User.User;
@@ -30,6 +31,8 @@ class CustomOAuth2SuccessHandlerTest {
         loginRepository = mock(AuthRepository.class);
         successHandler = new CustomOAuth2SuccessHandler();
         successHandler.loginRepository = loginRepository;
+
+        ReflectionTestUtils.setField(successHandler, "frontendUrl", "https://www.languages.io.vn");
 
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
@@ -64,7 +67,7 @@ class CustomOAuth2SuccessHandlerTest {
     void whenExistingUserWithoutRole_thenDoNothing() throws IOException {
         User existingUser = new User();
         existingUser.setEmail("old@example.com");
-        existingUser.setRole(List.of("student"));
+        existingUser.setRole(new java.util.ArrayList<>(List.of("student")));
 
         DefaultOAuth2User oAuth2User = new DefaultOAuth2User(
                 List.of(),
@@ -79,11 +82,12 @@ class CustomOAuth2SuccessHandlerTest {
         when(session.getAttribute("oauth2_role")).thenReturn("admin");
 
         when(loginRepository.findByEmail("old@example.com")).thenReturn(existingUser);
+        when(loginRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         successHandler.onAuthenticationSuccess(request, response, authentication);
 
-        verify(loginRepository, never()).save(any(User.class));
-        verify(response, never()).sendRedirect(anyString());
+        verify(loginRepository).save(any(User.class));
+        verify(response).sendRedirect("https://www.languages.io.vn/admin-page");
     }
 
 }

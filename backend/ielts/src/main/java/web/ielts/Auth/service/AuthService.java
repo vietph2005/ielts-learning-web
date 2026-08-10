@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
+import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.model.VerificationToken;
 import web.ielts.Auth.repository.VerificationTokenRepository;
 import web.ielts.Auth.repository.AuthRepository;
@@ -39,8 +40,8 @@ public class AuthService {
     private final String jwtSecret = "J4gKu2KJ3Z5vP8t5NmE+lw6aD3vJ6GpN1kILUBo=";
 
     // Đăng ký tài khoản mới và gửi email xác thực
-    public ResponseEntity<?> register(User newUser) {
-        if (authRepository.findByEmail(newUser.getEmail()) != null) {
+    public ResponseEntity<?> register(RegisterDTO registerDto) {
+        if (authRepository.findByEmail(registerDto.getEmail()) != null) {
             System.out.println("dang bi loi gmail");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email đã được đăng ký");
         };
@@ -48,8 +49,8 @@ public class AuthService {
         String token = UUID.randomUUID().toString();
         VerificationToken verificationToken = new VerificationToken(
                 token,
-                newUser.getEmail(),
-                newUser.getPassword(),
+                registerDto.getEmail(),
+                registerDto.getPassword(),
                 LocalDateTime.now().plusHours(24)
                 ,"student"
         );
@@ -57,7 +58,7 @@ public class AuthService {
         tokenRepository.save(verificationToken);
 
 
-        emailConfig.sendVerificationEmail(newUser.getEmail(), token);
+        emailConfig.sendVerificationEmail(registerDto.getEmail(), token);
 
         return ResponseEntity.ok("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
     }

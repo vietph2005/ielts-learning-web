@@ -87,7 +87,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         String token = JwtToken.generateAccessToken(email, activeRole, isPremium);
 
         // Security-hardened Cookie creation
-        boolean isSecure = request.isSecure() || !serverName.contains("localhost");
+        boolean isSecure = request.isSecure() || (serverName != null && !serverName.contains("localhost"));
         ResponseCookie cookie = ResponseCookie.from("jwt_token", token)
                 .httpOnly(true)
                 .secure(isSecure)

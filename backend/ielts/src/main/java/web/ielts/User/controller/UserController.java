@@ -37,15 +37,7 @@ public class UserController {
     public ResponseEntity<?> getUserByEmail(@PathVariable String username) {
         Optional<User> userOpt = userRepository.findById(username);
         if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            UserDTO dto = new UserDTO();
-            dto.setUserName(user.getEmail());
-            dto.setFirstName(user.getFirstName());
-            dto.setLastName(user.getLastName());
-            dto.setBirthDate(user.getBirthDate());
-            dto.setGender(user.getGender());
-            dto.setPhone(user.getPhone());
-            return ResponseEntity.ok(dto);
+            return ResponseEntity.ok(new UserDTO(userOpt.get()));
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -68,15 +60,7 @@ public class UserController {
 
         userRepository.save(existingUser);
 
-        UserDTO responseDto = new UserDTO();
-        responseDto.setUserName(existingUser.getEmail());
-        responseDto.setFirstName(existingUser.getFirstName());
-        responseDto.setLastName(existingUser.getLastName());
-        responseDto.setBirthDate(existingUser.getBirthDate());
-        responseDto.setGender(existingUser.getGender());
-        responseDto.setPhone(existingUser.getPhone());
-
-        return ResponseEntity.ok(responseDto);
+        return ResponseEntity.ok(new UserDTO(existingUser));
     }
 
     // ✅ Gộp nâng cấp premium từ cả AuthenticationPrincipal và JWT token
@@ -112,27 +96,19 @@ public class UserController {
 
     // ✅ Lấy thông tin người dùng và tự reset premium nếu hết hạn
     @GetMapping("/me")
-    public User getCurrentUser(@AuthenticationPrincipal User user) {
-        return userService.resetPremiumIfExpired(user);
+    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Không có thông tin đăng nhập");
+        }
+        User updatedUser = userService.resetPremiumIfExpired(user);
+        return ResponseEntity.ok(new UserDTO(updatedUser));
     }
 
      //Lấy danh sách tất cả user (cho manager)
     @GetMapping("/all")
     public List<UserDTO> getAllUsers() {
         List<User> users = userRepository.findAll();
-        return users.stream().map(user -> {
-            UserDTO dto = new UserDTO();
-            dto.setUserName(user.getEmail());
-            dto.setFirstName(user.getFirstName());
-            dto.setLastName(user.getLastName());
-            dto.setBirthDate(user.getBirthDate());
-            dto.setGender(user.getGender());
-            dto.setPhone(user.getPhone());
-            dto.setRoles(user.getRole());
-            dto.setPremium(user.isPremium());
-            dto.setCreatedAt(user.getCreatedAt());
-            return dto;
-        }).collect(Collectors.toList());
+        return users.stream().map(UserDTO::new).collect(Collectors.toList());
     }
 
      //Lấy danh sách user theo role (cho manager)
@@ -141,19 +117,8 @@ public class UserController {
         List<User> users = userRepository.findAll();
         return users.stream()
             .filter(user -> user.getRole() != null && user.getRole().contains(role))
-            .map(user -> {
-                UserDTO dto = new UserDTO();
-                dto.setUserName(user.getEmail());
-                dto.setFirstName(user.getFirstName());
-                dto.setLastName(user.getLastName());
-                dto.setBirthDate(user.getBirthDate());
-                dto.setGender(user.getGender());
-                dto.setPhone(user.getPhone());
-                dto.setRoles(user.getRole());
-                dto.setPremium(user.isPremium());
-                dto.setCreatedAt(user.getCreatedAt());
-                return dto;
-            }).collect(Collectors.toList());
+            .map(UserDTO::new)
+            .collect(Collectors.toList());
     }
 
     // Xóa user theo email (cho manager)

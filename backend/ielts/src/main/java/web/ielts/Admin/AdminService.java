@@ -18,7 +18,7 @@ public class AdminService {
     public List<UserDTO> getUsersByRole(String role) {
         List<User> users = adminRepository.findByRoleContaining(role);
         return users.stream()
-                .map(user -> new UserDTO(user.getEmail(), user.getRole()))
+                .map(UserDTO::new)
                 .collect(Collectors.toList());
     }
 

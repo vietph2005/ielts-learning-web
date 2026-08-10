@@ -12,6 +12,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.model.VerificationToken;
 import web.ielts.Auth.repository.AuthRepository;
 import web.ielts.Auth.repository.VerificationTokenRepository;
@@ -56,30 +57,34 @@ public class AuthServiceTest {
 
     @Test
     void testRegister_Success() {
-        User newUser = new User();
-        newUser.setEmail("newuser@example.com");
-        newUser.setPassword("Password123");
+        RegisterDTO newRegister = new RegisterDTO();
+        newRegister.setEmail("newuser@example.com");
+        newRegister.setPassword("Password123");
 
-        when(authRepository.findByEmail(newUser.getEmail())).thenReturn(null);
+        when(authRepository.findByEmail(newRegister.getEmail())).thenReturn(null);
 
-        ResponseEntity<?> response = authService.register(newUser);
+        ResponseEntity<?> response = authService.register(newRegister);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.", response.getBody());
 
         verify(tokenRepository, times(1)).save(any(VerificationToken.class));
-        verify(emailConfig, times(1)).sendVerificationEmail(eq(newUser.getEmail()), anyString());
+        verify(emailConfig, times(1)).sendVerificationEmail(eq(newRegister.getEmail()), anyString());
     }
 
     @Test
     void testRegister_EmailAlreadyExists() {
+        RegisterDTO existingRegister = new RegisterDTO();
+        existingRegister.setEmail("existing@example.com");
+        existingRegister.setPassword("Password123");
+
         User existingUser = new User();
         existingUser.setEmail("existing@example.com");
         existingUser.setPassword("Password123");
 
-        when(authRepository.findByEmail(existingUser.getEmail())).thenReturn(existingUser);
+        when(authRepository.findByEmail(existingRegister.getEmail())).thenReturn(existingUser);
 
-        ResponseEntity<?> response = authService.register(existingUser);
+        ResponseEntity<?> response = authService.register(existingRegister);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Email đã được đăng ký", response.getBody());

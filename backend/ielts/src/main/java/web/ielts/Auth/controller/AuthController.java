@@ -15,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import web.ielts.Auth.dto.AuthDTO;
+import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.service.AuthService;
 import web.ielts.User.User;
 
@@ -27,9 +28,9 @@ public class AuthController {
 
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User newUser) {
+    public ResponseEntity<?> register(@RequestBody RegisterDTO registerDto) {
 
-        return authservice.register(newUser);
+        return authservice.register(registerDto);
     }
     @PostMapping("/forgotpassword")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
