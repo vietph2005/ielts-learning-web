@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -455,7 +456,7 @@ public class DoTestService {
                         double fluencyScore = calculatePraatFluencyScore(prosodyFeatures);
 
                         //PHan Viet
-                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, part2.getQuestion(), 1, prosodyFeatures, fluencyScore, null);
+                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, part2.getQuestion(), 2, prosodyFeatures, fluencyScore, part2.getCueCards());
 
                         //Praat va AI
                         PronunciationAnswer pa = prosodyService.analyze(s3UrlNotEncrypt, transcript, 2);
@@ -491,7 +492,7 @@ public class DoTestService {
         if (part3 != null && part3.getQuestions() != null) {
 
             double totalScore = 0;
-            int validQuestionCount = part3.getQuestions().size();
+            int validQuestionCount = 0;
 
             for (SpeakingAnswerQuestion qa : part3.getQuestions()) {
                 String blob = qa.getAudioAnswer();
@@ -516,7 +517,7 @@ public class DoTestService {
                         double fluencyScore = calculatePraatFluencyScore(prosodyFeatures);
 
                         //PHan Viet
-                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(), 1, prosodyFeatures, fluencyScore, null);
+                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(), 3, prosodyFeatures, fluencyScore, null);
 
                         //Praat va AI
                         PronunciationAnswer pa = prosodyService.analyze(s3UrlNotEncrypt, transcript, 3);
@@ -553,33 +554,94 @@ public class DoTestService {
 
 
         }
-        double band = part1Score + part2Score + part3Score;
-        double avgBand = calculateIeltsRounding(band / 3.0);
+        int validParts = 0;
+        double totalPartScores = 0.0;
+        if (part1 != null && part1.getQuestions() != null && !part1.getQuestions().isEmpty()) {
+            validParts++;
+            totalPartScores += part1Score;
+        }
+        if (part2 != null) {
+            validParts++;
+            totalPartScores += part2Score;
+        }
+        if (part3 != null && part3.getQuestions() != null && !part3.getQuestions().isEmpty()) {
+            validParts++;
+            totalPartScores += part3Score;
+        }
+        double avgBand = validParts > 0 ? calculateIeltsRounding(totalPartScores / (double) validParts) : 0.0;
         speakingAnswer.setBand(avgBand);
     }
     private double calculatePraatFluencyScore(FleCohAnswer basicFluent) {
         if (basicFluent == null) return 50.0;
-        double speechRate = 0;
+        double speechRate = 0.0;
         int pauseCount = 0;
-        try {
-            speechRate = Double.parseDouble(basicFluent.getSpeechRate());
-        } catch (Exception e) {}
-        try {
-            pauseCount = Integer.parseInt(basicFluent.getPauseCount());
-        } catch (Exception e) {}
+        double totalDuration = 0.0;
 
-        double bandScore = 5.0;
-        if (speechRate >= 5.0 && pauseCount <= 1) bandScore = 9.0;
-        else if (speechRate >= 4.5 && pauseCount <= 3) bandScore = 8.0;
-        else if (speechRate >= 4.0 && pauseCount <= 5) bandScore = 7.0;
-        else if (speechRate >= 3.5 && pauseCount <= 7) bandScore = 6.0;
-        else if (speechRate >= 3.0 && pauseCount <= 10) bandScore = 5.0;
-        else if (speechRate >= 2.5 && pauseCount <= 13) bandScore = 4.0;
-        else if (speechRate >= 2.0 && pauseCount <= 16) bandScore = 3.0;
-        else if (speechRate >= 1.5 && pauseCount <= 20) bandScore = 2.0;
-        else bandScore = 1.0;
+        try {
+            if (basicFluent.getSpeechRate() != null) {
+                speechRate = Double.parseDouble(basicFluent.getSpeechRate());
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (basicFluent.getPauseCount() != null) {
+                pauseCount = Integer.parseInt(basicFluent.getPauseCount());
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (basicFluent.getTotalDuration() != null) {
+                totalDuration = Double.parseDouble(basicFluent.getTotalDuration());
+            }
+        } catch (Exception ignored) {}
+
+        // Calculate pause rate (pauses per minute)
+        double pauseRate;
+        if (totalDuration > 0) {
+            pauseRate = pauseCount / (totalDuration / 60.0);
+        } else {
+            // Fallback: estimate pause rate assuming typical utterance duration ~20s
+            pauseRate = pauseCount * 3.0;
+        }
+
+        // Map Speech Rate and Pause Rate to IELTS Band (1.0 - 9.0) with linear interpolation
+        double srBand = mapSpeechRateToBand(speechRate);
+        double prBand = mapPauseRateToBand(pauseRate);
+
+        // Weighted combination: 60% Speech Rate + 40% Pause Rate
+        double bandScore = 0.6 * srBand + 0.4 * prBand;
+        bandScore = Math.max(1.0, Math.min(9.0, bandScore));
+
+        System.out.printf(Locale.US, "🎯 [PRAAT FLUENCY] SpeechRate: %.2f (Band %.2f), PauseRate: %.2f/min (Band %.2f) => Weighted Band: %.2f%n",
+                speechRate, srBand, pauseRate, prBand, bandScore);
 
         return ((bandScore - 1.0) / 8.0) * 100.0;
+    }
+
+    private double mapSpeechRateToBand(double speechRate) {
+        if (speechRate >= 3.2) return 9.0;
+        if (speechRate >= 2.8) return 8.0 + (speechRate - 2.8) / (3.2 - 2.8) * 1.0;
+        if (speechRate >= 2.5) return 7.0 + (speechRate - 2.5) / (2.8 - 2.5) * 1.0;
+        if (speechRate >= 2.2) return 6.0 + (speechRate - 2.2) / (2.5 - 2.2) * 1.0;
+        if (speechRate >= 1.8) return 5.0 + (speechRate - 1.8) / (2.2 - 1.8) * 1.0;
+        if (speechRate >= 1.5) return 4.0 + (speechRate - 1.5) / (1.8 - 1.5) * 1.0;
+        if (speechRate >= 1.2) return 3.0 + (speechRate - 1.2) / (1.5 - 1.2) * 1.0;
+        if (speechRate >= 0.8) return 2.0 + (speechRate - 0.8) / (1.2 - 0.8) * 1.0;
+        if (speechRate >= 0.4) return 1.0 + (speechRate - 0.4) / (0.8 - 0.4) * 1.0;
+        return 1.0;
+    }
+
+    private double mapPauseRateToBand(double pauseRate) {
+        if (pauseRate <= 4.0) return 9.0;
+        if (pauseRate <= 7.0) return 9.0 - (pauseRate - 4.0) / (7.0 - 4.0) * 1.0;
+        if (pauseRate <= 10.0) return 8.0 - (pauseRate - 7.0) / (10.0 - 7.0) * 1.0;
+        if (pauseRate <= 14.0) return 7.0 - (pauseRate - 10.0) / (14.0 - 10.0) * 1.0;
+        if (pauseRate <= 18.0) return 6.0 - (pauseRate - 14.0) / (18.0 - 14.0) * 1.0;
+        if (pauseRate <= 23.0) return 5.0 - (pauseRate - 18.0) / (23.0 - 18.0) * 1.0;
+        if (pauseRate <= 28.0) return 4.0 - (pauseRate - 23.0) / (28.0 - 23.0) * 1.0;
+        if (pauseRate <= 35.0) return 3.0 - (pauseRate - 28.0) / (35.0 - 28.0) * 1.0;
+        if (pauseRate <= 45.0) return 2.0 - (pauseRate - 35.0) / (45.0 - 35.0) * 1.0;
+        return 1.0;
     }
 
     private String extractFileName(String blobUrl) {

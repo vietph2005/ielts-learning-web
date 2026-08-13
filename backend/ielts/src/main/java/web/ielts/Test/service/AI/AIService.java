@@ -276,15 +276,15 @@ You are an official IELTS Speaking examiner. You MUST follow all deduction rules
                     "Band 1: No coherence at all. Utterances are unrelated or unintelligible.\n";
     private static final String IELTS_STRICT_FLUENCY_ONLY =
             "- IELTS Fluency Descriptors (strict, based on acoustic features):\n" +
-                    "Band 9: SpeechRate ≥ 5.0 wps, PauseCount ≤ 1, MeanIntensity ≥ 68 dB. Fully fluent, no hesitation, natural speed and volume throughout.\n" +
-                    "Band 8: SpeechRate ≥ 4.5 wps, PauseCount ≤ 3, MeanIntensity ≥ 66 dB. Smooth and fast delivery with only minor natural pauses.\n" +
-                    "Band 7: SpeechRate ≥ 4.0 wps, PauseCount ≤ 5, MeanIntensity ≥ 63 dB. Mostly fluent with occasional hesitation or repetition.\n" +
-                    "Band 6: SpeechRate ≥ 3.5 wps, PauseCount ≤ 7, MeanIntensity ≥ 60 dB. Noticeable hesitation and repetition, moderate fluency.\n" +
-                    "Band 5: SpeechRate ≥ 3.0 wps, PauseCount ≤ 10, MeanIntensity ≥ 57 dB. Frequent pauses and disrupted flow, especially on complex ideas.\n" +
-                    "Band 4: SpeechRate ≥ 2.5 wps, PauseCount ≤ 13, MeanIntensity ≥ 55 dB. Hesitant speech with frequent stops and slow pace.\n" +
-                    "Band 3: SpeechRate ≥ 2.0 wps, PauseCount ≤ 16, MeanIntensity ≥ 52 dB. Disjointed delivery with poor connection between ideas.\n" +
-                    "Band 2: SpeechRate ≥ 1.5 wps, PauseCount ≤ 20, MeanIntensity ≥ 50 dB. Very slow and halting speech with little fluency.\n" +
-                    "Band 1: SpeechRate < 1.5 wps, PauseCount > 20, MeanIntensity < 50 dB. No fluency at all. Isolated words or unintelligible output.\n";
+                    "Band 9: SpeechRate ≥ 3.2 wps, PauseRate ≤ 4.0 pauses/min. Fully fluent, effortless delivery with natural speed and flow throughout.\n" +
+                    "Band 8: SpeechRate ≥ 2.8 wps, PauseRate ≤ 7.0 pauses/min. Smooth and continuous delivery with only occasional natural pauses.\n" +
+                    "Band 7: SpeechRate ≥ 2.5 wps, PauseRate ≤ 10.0 pauses/min. Mostly fluent, can keep going easily with occasional hesitation or repetition.\n" +
+                    "Band 6: SpeechRate ≥ 2.2 wps, PauseRate ≤ 14.0 pauses/min. Noticeable pauses and hesitation at times, but maintains moderate flow.\n" +
+                    "Band 5: SpeechRate ≥ 1.8 wps, PauseRate ≤ 18.0 pauses/min. Frequent pauses and slower pace, especially when formulating complex ideas.\n" +
+                    "Band 4: SpeechRate ≥ 1.5 wps, PauseRate ≤ 23.0 pauses/min. Halting speech with noticeable hesitations and slow tempo.\n" +
+                    "Band 3: SpeechRate ≥ 1.2 wps, PauseRate ≤ 28.0 pauses/min. Very slow and fragmented delivery with frequent long pauses.\n" +
+                    "Band 2: SpeechRate ≥ 0.8 wps, PauseRate ≤ 35.0 pauses/min. Halting, isolated words with little continuous flow.\n" +
+                    "Band 1: SpeechRate < 0.8 wps, PauseRate > 35.0 pauses/min. Rateable language is extremely limited or unintelligible.\n";
     private static final String IELTS_PUBLIC_Pronunciation =
             "- IELTS Public Descriptors:\n" +
                     "Band 9: Uses a full range of phonological features to convey precise and/or subtle meaning. Flexible use of features of connected speech is sustained throughout. Can be effortlessly understood throughout. Accent has no effect on intelligibility.\n" +
@@ -432,8 +432,6 @@ You are an official IELTS Speaking examiner. You MUST follow all deduction rules
                         "Do NOT provide generic or vague comments.\n" +
                         "\n" +
                         "Your feedback must explicitly mention and evaluate the following:\n" +
-
-                        "- **Mean Intensity**:  Comment on whether the volume was loud, soft, or appropriately consistent throughout?.n"+
                         "- **Speech rate**: Was the candidate’s speech fast, slow, or appropriately paced?\n" +
                         "- **Number and nature of pauses**: Were there frequent unnatural pauses or hesitations?\n" +
                         "- **Logical progression of ideas**: Did the candidate present ideas in a logical and connected manner?\n" +
@@ -537,7 +535,6 @@ You are an official IELTS Speaking examiner. You MUST follow all deduction rules
                         "Do NOT provide generic or vague comments.\n" +
                         "\n" +
                         "Your feedback must explicitly mention and evaluate the following:\n" +
-                        "- **Mean Intensity**:  Comment on whether the volume was loud, soft, or appropriately consistent throughout?.n"+
                         "- **Speech rate**: Was the candidate’s speech fast, slow, or appropriately paced?\n" +
                         "- **Number and nature of pauses**: Were there frequent unnatural pauses or hesitations?\n" +
                         "- **Logical progression of ideas**: Did the candidate present ideas in a logical and connected manner?\n" +
@@ -645,9 +642,6 @@ You are an official IELTS Speaking examiner. You MUST follow all deduction rules
                         "Do NOT provide generic or vague comments.\n" +
                         "\n" +
                         "Your feedback must explicitly mention and evaluate the following:\n" +
-                        "\n" +
-                        "meanIntensity"+
-                        "- **Mean Intensity**:  Comment on whether the volume was loud, soft, or appropriately consistent throughout?.n"+
                         "- **Speech rate**: Was the candidate’s speech fast, slow, or appropriately paced?\n" +
                         "- **Number and nature of pauses**: Were there frequent unnatural pauses or hesitations?\n" +
                         "- **Logical progression of ideas**: Did the candidate present ideas in a logical and connected manner?\n" +

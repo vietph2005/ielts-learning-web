@@ -1035,14 +1035,26 @@
                         case "speechRate":
                             answer.setSpeechRate(valueStr);
                             break;
+                        case "totalDuration":
+                            answer.setTotalDuration(valueStr);
+                            break;
+                        case "totalPauseDuration":
+                            answer.setTotalPauseDuration(valueStr);
+                            break;
+                        case "wordCount":
+                            answer.setWordCount(valueStr);
+                            break;
                     }
                 }
             }
+            // Tính toán pauseRate (pauses per minute)
+            double calculatedPauseRate = answer.getCalculatedPauseRate();
+            answer.setPauseRate(String.format(Locale.US, "%.2f", calculatedPauseRate));
+
             // Set default values for score and comment
             answer.setScore(0);
             answer.setComment(null);
-            System.out.println("📤 Parsed FleCohAnswer:\n" +
-                    "meanIntensity=" + answer.getMeanIntensity() + ", pauseCount=" + answer.getPauseCount() + ", speechRate=" + answer.getSpeechRate());
+            System.out.println("📤 Parsed FleCohAnswer:\n" + answer.toString());
             return answer;
         }
 

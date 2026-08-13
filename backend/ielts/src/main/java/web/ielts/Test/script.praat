@@ -41,7 +41,7 @@ for i from 1 to numIntervals
 
     if i > 1
         pauseGap = xmin - previousXmax
-        if pauseGap > 0.25
+        if pauseGap > 0.35
             pauseCount = pauseCount + 1
             totalPauseDuration = totalPauseDuration + pauseGap
         endif
@@ -62,10 +62,16 @@ endif
 writeInfoLine: "meanIntensity = ", meanIntensity
 writeInfoLine: "pauseCount = ", pauseCount
 writeInfoLine: "speechRate = ", speechRate
+writeInfoLine: "totalDuration = ", totalDuration
+writeInfoLine: "totalPauseDuration = ", totalPauseDuration
+writeInfoLine: "wordCount = ", wordCount
 
 # Ghi kết quả vào file output
 writeFile: outputFile$, "meanIntensity=", string$(meanIntensity), newline$
 appendFile: outputFile$, "pauseCount=", string$(pauseCount), newline$
 appendFile: outputFile$, "speechRate=", string$(speechRate), newline$
+appendFile: outputFile$, "totalDuration=", string$(totalDuration), newline$
+appendFile: outputFile$, "totalPauseDuration=", string$(totalPauseDuration), newline$
+appendFile: outputFile$, "wordCount=", string$(wordCount), newline$
 
 writeInfoLine: "Praat script end"
