@@ -27,19 +27,19 @@ import java.util.regex.Pattern;
 
 @Service
 public class WhisperService {
-    @Value("${openai.api.key}")
-    private String openaiApiKey;
+    @Value("${groq.api.key}")
+    private String groqApiKey;
 
     public JsonNode transcribeWithTimestampsAndSyllables(String audioUrl) throws IOException {
         File audioFile = downloadAudioFile(audioUrl);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        headers.setBearerAuth(openaiApiKey);
+        headers.setBearerAuth(groqApiKey);
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new FileSystemResource(audioFile));
-        body.add("model", "whisper-1");
+        body.add("model", "whisper-large-v3");
         body.add("language", "en");
         body.add("response_format", "verbose_json");
         body.add("timestamp_granularities[]", "word");
@@ -48,7 +48,7 @@ public class WhisperService {
         RestTemplate restTemplate = new RestTemplate();
 
         ResponseEntity<String> response = restTemplate.postForEntity(
-                "https://api.openai.com/v1/audio/transcriptions",
+                "https://api.groq.com/openai/v1/audio/transcriptions",
                 request,
                 String.class
         );

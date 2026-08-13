@@ -102,70 +102,70 @@ public class DoTestController {
         return ResponseEntity.ok(saved);
     }
 
-    @PostMapping("/speaking/submit")
-    public ResponseEntity<Map<String, Object>> uploadFiles(
-            @RequestPart("metadata") MultipartFile metadataJson,
-            @RequestPart(value = "files", required = false) MultipartFile[] files,
-            @RequestParam(required = false) String testAnswerId,
-            @AuthenticationPrincipal User user
-    ) {
-        String studentUsername = (user != null && user.getUsername() != null) ? user.getUsername() : "anonymous";
-        String userRole = (user != null && user.getRole() != null && !user.getRole().isEmpty()) ? user.getRole().get(0) : "STUDENT";
-        System.out.println("User: " + studentUsername + ", Role: " + userRole);
+        @PostMapping("/speaking/submit")
+        public ResponseEntity<Map<String, Object>> uploadFiles(
+                @RequestPart("metadata") MultipartFile metadataJson,
+                @RequestPart(value = "files", required = false) MultipartFile[] files,
+                @RequestParam(required = false) String testAnswerId,
+                @AuthenticationPrincipal User user
+        ) {
+            String studentUsername = (user != null && user.getUsername() != null) ? user.getUsername() : "anonymous";
+            String userRole = (user != null && user.getRole() != null && !user.getRole().isEmpty()) ? user.getRole().get(0) : "STUDENT";
+            System.out.println("User: " + studentUsername + ", Role: " + userRole);
 
-        String testId;
-        SpeakingAnswer submission;
-        SpeakingAnswer saved;
+            String testId;
+            SpeakingAnswer submission;
+            SpeakingAnswer saved;
 
-        try {
-            String jsonString = new String(metadataJson.getBytes(), StandardCharsets.UTF_8);
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            JsonNode root = mapper.readTree(jsonString);
+            try {
+                String jsonString = new String(metadataJson.getBytes(), StandardCharsets.UTF_8);
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                JsonNode root = mapper.readTree(jsonString);
 
-            testId = root.get("testId").asText();
-            submission = mapper.readValue(jsonString, SpeakingAnswer.class);
-            submission.setUsername(studentUsername);
-             System.out.println(submission.toString());
-            saved = doTestService.saveSubmission(submission);
-            System.out.println(saved);
+                testId = root.get("testId").asText();
+                submission = mapper.readValue(jsonString, SpeakingAnswer.class);
+                submission.setUsername(studentUsername);
+                 System.out.println(submission.toString());
+                saved = doTestService.saveSubmission(submission);
+                System.out.println(saved);
 
-        } catch (IOException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Lỗi khi đọc hoặc lưu metadata JSON: " + e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-
-        Map<String, String> fileUrlMap = new HashMap<>();
-
-        if (files != null && files.length > 0) {
-            for (MultipartFile file : files) {
-                try {
-                    String url = doTestService.uploadFile(file, "speaking", userRole, studentUsername);
-                    fileUrlMap.put(file.getOriginalFilename(), url);
-                    System.out.println("Uploaded: " + url);
-                } catch (IOException e) {
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("error", "Upload failed: " + e.getMessage());
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-                }
+            } catch (IOException e) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Lỗi khi đọc hoặc lưu metadata JSON: " + e.getMessage());
+                return ResponseEntity.badRequest().body(errorResponse);
             }
-        } else {
-            System.out.println("No files uploaded, only saving metadata.");
+
+            Map<String, String> fileUrlMap = new HashMap<>();
+
+            if (files != null && files.length > 0) {
+                for (MultipartFile file : files) {
+                    try {
+                        String url = doTestService.uploadFile(file, "speaking", userRole, studentUsername);
+                        fileUrlMap.put(file.getOriginalFilename(), url);
+                        System.out.println("Uploaded: " + url);
+                    } catch (IOException e) {
+                        Map<String, Object> errorResponse = new HashMap<>();
+                        errorResponse.put("error", "Upload failed: " + e.getMessage());
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+                    }
+                }
+            } else {
+                System.out.println("No files uploaded, only saving metadata.");
+            }
+
+            doTestService.updateAnswerUrls(saved, fileUrlMap);
+            doTestService.saveSubmission(saved);
+            Map<String, Object> response = new HashMap<>();
+
+            response.put("id", saved.getId());
+            response.put("message", "✅ Upload và cập nhật thành công!");
+
+            if (testAnswerId != null && !testAnswerId.isEmpty()) {
+                testAnswerService.updateSpeakingAnswer(testAnswerId, saved.getId());
+            }
+            return ResponseEntity.ok(response);
         }
-
-        doTestService.updateAnswerUrls(saved, fileUrlMap);
-        doTestService.saveSubmission(saved);
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("id", saved.getId());
-        response.put("message", "✅ Upload và cập nhật thành công!");
-
-        if (testAnswerId != null && !testAnswerId.isEmpty()) {
-            testAnswerService.updateSpeakingAnswer(testAnswerId, saved.getId());
-        }
-        return ResponseEntity.ok(response);
-    }
 
 
 

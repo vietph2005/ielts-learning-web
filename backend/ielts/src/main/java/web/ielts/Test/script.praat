@@ -28,6 +28,7 @@ numIntervals = Get number of intervals: 1  ; dùng trực tiếp tier số 1
 wordCount = 0
 pauseCount = 0
 previousXmax = 0.0
+totalPauseDuration = 0.0
 
 for i from 1 to numIntervals
     text$ = Get label of interval: 1, i  ; tier số 1
@@ -39,16 +40,23 @@ for i from 1 to numIntervals
     endif
 
     if i > 1
-        if xmin > previousXmax
+        pauseGap = xmin - previousXmax
+        if pauseGap > 0.25
             pauseCount = pauseCount + 1
+            totalPauseDuration = totalPauseDuration + pauseGap
         endif
     endif
 
     previousXmax = xmax
 endfor
 
-# Tính speech rate (số từ trên tổng thời lượng đoạn âm thanh)
-speechRate = wordCount / totalDuration
+# Tính speech rate dùng thời gian nói thực (trừ pause)
+activeSpeechDuration = totalDuration - totalPauseDuration
+if activeSpeechDuration > 0
+    speechRate = wordCount / activeSpeechDuration
+else
+    speechRate = 0
+endif
 
 # In kết quả ra Info window (debug)
 writeInfoLine: "meanIntensity = ", meanIntensity

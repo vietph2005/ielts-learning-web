@@ -37,15 +37,17 @@ public class AIService {
     }
     @Value("${openai.api.key}")
     private String apiKey;
+    @Value("${gemini.api.key}")
+    private String geminiApiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     public String callSpeakingPart(String prompt) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + geminiApiKey;
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
 
-        // 🧠 Cấu hình system message nghiêm ngặt
         String systemMessage = """
 You are an official IELTS Speaking examiner. You MUST follow all deduction rules given in the prompt STRICTLY.
 - Do not skip even minor vocabulary or grammar errors.
@@ -54,38 +56,42 @@ You are an official IELTS Speaking examiner. You MUST follow all deduction rules
 """;
 
         Map<String, Object> requestBody = Map.of(
-                "model", "gpt-4o",
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemMessage),
-                        Map.of("role", "user", "content", prompt)
+                "contents", List.of(
+                        Map.of("parts", List.of(Map.of("text", prompt)))
                 ),
-                "temperature", 0,
-                "top_p", 1,
-                "max_tokens", 1500 // bạn có thể tăng lên nếu câu trả lời dài
+                "systemInstruction", Map.of(
+                        "parts", List.of(Map.of("text", systemMessage))
+                ),
+                "generationConfig", Map.of(
+                        "responseMimeType", "application/json",
+                        "temperature", 0.0
+                )
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(
-                    "https://api.openai.com/v1/chat/completions",
+                    url,
                     entity,
                     String.class
             );
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                JsonNode root = new ObjectMapper().readTree(response.getBody());
+                JsonNode root = objectMapper.readTree(response.getBody());
                 return root
-                        .path("choices")
+                        .path("candidates")
                         .path(0)
-                        .path("message")
                         .path("content")
+                        .path("parts")
+                        .path(0)
+                        .path("text")
                         .asText();
             } else {
-                throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+                throw new RuntimeException("Gemini API error: " + response.getStatusCode());
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to call OpenAI GPT API or parse response", e);
+            throw new RuntimeException("Failed to call Gemini API or parse response", e);
         }
     }
 

@@ -13,10 +13,9 @@ public class PronunciationAnswer {
     private List<IntonationSentence> correctEmphasizedWords;
     private List<IntonationSentence> overEmphasis;
     private List<IntonationSentence> missingEmphasis;
-    private AzurePronunciationResult azureResult;
     private String comment;
 
-    public PronunciationAnswer(double score, String stressTranscript, List<StressMismatch> stressMismatchesDetailed, String transcript, List<IntonationSentence> importantWords, List<IntonationSentence> emphasizedWords, List<IntonationSentence> correctEmphasizedWords, List<IntonationSentence> overEmphasis, List<IntonationSentence> missingEmphasis, AzurePronunciationResult azureResult, String comment) {
+    public PronunciationAnswer(double score, String stressTranscript, List<StressMismatch> stressMismatchesDetailed, String transcript, List<IntonationSentence> importantWords, List<IntonationSentence> emphasizedWords, List<IntonationSentence> correctEmphasizedWords, List<IntonationSentence> overEmphasis, List<IntonationSentence> missingEmphasis, String comment) {
         this.score = score;
         this.stressTranscript = stressTranscript;
         this.stressMismatchesDetailed = stressMismatchesDetailed;
@@ -26,7 +25,6 @@ public class PronunciationAnswer {
         this.correctEmphasizedWords = correctEmphasizedWords;
         this.overEmphasis = overEmphasis;
         this.missingEmphasis = missingEmphasis;
-        this.azureResult = azureResult;
         this.comment = comment;
     }
 
@@ -114,10 +112,4 @@ public class PronunciationAnswer {
         this.missingEmphasis = missingEmphasis;
     }
 
-    public AzurePronunciationResult getAzureResult() {
-        return azureResult;
-    }
-    public void setAzureResult(AzurePronunciationResult azureResult) {
-        this.azureResult = azureResult;
-    }
 }

@@ -52,6 +52,9 @@
 
         @Value("${openai.api.key}")
         private String openaiApiKey;
+
+        @Value("${gemini.api.key}")
+        private String geminiApiKey;
         private final RestTemplate restTemplate = new RestTemplate();
         private final ObjectMapper objectMapper = new ObjectMapper();
         private final List<String> stressMismatches = new ArrayList<>();
@@ -100,12 +103,31 @@
         }
 
         private List<IntonationSentence> parsePronunciationResponseToList(String aiResponse) {
+            if (aiResponse == null || aiResponse.trim().isEmpty()) {
+                return new ArrayList<>();
+            }
             try {
-                Pattern pattern = Pattern.compile("\\[.*?\\]", Pattern.DOTALL);
-                Matcher matcher = pattern.matcher(aiResponse);
-                if (matcher.find()) {
-                    String jsonStr = matcher.group();
-                    System.out.println("🔍 Extracted JSON: " + jsonStr);
+                String content = aiResponse.trim();
+                // Bỏ markdown codeblock nếu có
+                if (content.startsWith("```")) {
+                    content = content.replaceAll("^```[a-zA-Z]*\\s*", "").replaceAll("\\s*```$", "").trim();
+                }
+
+                int firstBracket = content.indexOf('[');
+                if (firstBracket != -1) {
+                    int lastBracket = content.lastIndexOf(']');
+                    String jsonStr;
+                    if (lastBracket != -1 && lastBracket > firstBracket) {
+                        jsonStr = content.substring(firstBracket, lastBracket + 1);
+                    } else {
+                        // Trường hợp AI bị cắt ngang response hoặc thiếu dấu ']' ở cuối
+                        jsonStr = content.substring(firstBracket).trim();
+                        if (jsonStr.endsWith(",")) {
+                            jsonStr = jsonStr.substring(0, jsonStr.length() - 1);
+                        }
+                        jsonStr = jsonStr + "]";
+                    }
+                    System.out.println("🔍 Extracted & Repaired JSON: " + jsonStr);
                     return objectMapper.readValue(
                             jsonStr,
                             new TypeReference<List<IntonationSentence>>() {}
@@ -199,22 +221,27 @@
 
         private String callOpenAIPronunciation(String prompt) {
             try {
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + geminiApiKey;
+
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setBearerAuth(openaiApiKey);
 
                 Map<String, Object> requestBody = Map.of(
-                        "model", "gpt-4o",
-                        "messages", List.of(
-                                Map.of("role", "system", "content", "You are an IELTS pronunciation expert."),
-                                Map.of("role", "user", "content", prompt)
+                        "contents", List.of(
+                                Map.of("parts", List.of(Map.of("text", prompt)))
                         ),
-                        "temperature", 0.2
+                        "systemInstruction", Map.of(
+                                "parts", List.of(Map.of("text", "You are an IELTS pronunciation expert."))
+                        ),
+                        "generationConfig", Map.of(
+                                "responseMimeType", "application/json",
+                                "temperature", 0.2
+                        )
                 );
 
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
                 ResponseEntity<String> response = restTemplate.postForEntity(
-                        "https://api.openai.com/v1/chat/completions",
+                        url,
                         entity,
                         String.class
                 );
@@ -224,17 +251,17 @@
                     System.out.println(response.getBody());
 
                     JsonNode root = objectMapper.readTree(response.getBody());
-                    return root.path("choices").get(0).path("message").path("content").asText();
+                    return root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText();
                 }
                 else {
-                    throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+                    throw new RuntimeException("Gemini API error: " + response.getStatusCode());
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Failed to call OpenAI API", e);
+                throw new RuntimeException("Failed to call Gemini API", e);
             }
         }
 
-        private FeedBackAI callOpenAIScorePronunciation(String transcript, List<StressMismatch> stressMismatches, List<String> importantWords, List<String> emphasizedWords, String azureJsonResult, int partNumber) {
+        private FeedBackAI callOpenAIScorePronunciation(String transcript, List<StressMismatch> stressMismatches, List<String> importantWords, List<String> emphasizedWords, int partNumber) {
             try {
                 StringBuilder prompt = new StringBuilder();
                 prompt.append("You are a certified IELTS Speaking examiner specializing in pronunciation assessment.\n")
@@ -244,8 +271,7 @@
                         .append("- The full transcript of the spoken answer.\n")
                         .append("- The list of important words that SHOULD be emphasized.\n")
                         .append("- The list of stress mismatches (i.e., words whose stressed syllables were incorrect).\n")
-                        .append("- The list of important words that were NOT emphasized (missing emphasis).\n")
-                        .append("- The Azure Pronunciation Assessment JSON result.\n\n")
+                        .append("- The list of important words that were NOT emphasized (missing emphasis).\n\n")
                         .append("=== IELTS Pronunciation Band Descriptors ===\n")
                         .append("Band 9: Uses a full range of phonological features to\n" +
                                 "convey precise and/or subtle meaning.\n" +
@@ -329,29 +355,33 @@
                     prompt.append("- ").append(w).append("\n");
                 }
 
-                prompt.append("\nAzure Pronunciation Assessment JSON result:\n");
-                prompt.append(azureJsonResult == null ? "{}" : azureJsonResult).append("\n\n");
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + geminiApiKey;
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setBearerAuth(openaiApiKey);
+
                 Map<String, Object> requestBody = Map.of(
-                        "model", "gpt-4o",
-                        "messages", List.of(
-                                Map.of("role", "system", "content", "You are an IELTS pronunciation expert."),
-                                Map.of("role", "user", "content", prompt.toString())
+                        "contents", List.of(
+                                Map.of("parts", List.of(Map.of("text", prompt.toString())))
                         ),
-                        "temperature", 0.2
+                        "systemInstruction", Map.of(
+                                "parts", List.of(Map.of("text", "You are an IELTS pronunciation expert."))
+                        ),
+                        "generationConfig", Map.of(
+                                "responseMimeType", "application/json",
+                                "temperature", 0.2
+                        )
                 );
+
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
                 ResponseEntity<String> response = restTemplate.postForEntity(
-                        "https://api.openai.com/v1/chat/completions",
+                        url,
                         entity,
                         String.class
                 );
                 if (response.getStatusCode().is2xxSuccessful()) {
                     JsonNode root = objectMapper.readTree(response.getBody());
-                    String content = root.path("choices").get(0).path("message").path("content").asText();
+                    String content = root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText();
                     // Làm sạch markdown nếu có
                     content = content.trim();
                     if (content.startsWith("```")) {
@@ -444,11 +474,11 @@
                 writer.println("        xmax = " + audioDuration);
 
                 List<JsonNode> wordNodes = new ArrayList<>();
-                if (root.has("segments")) {
+                if (root.has("segments") && root.get("segments").isArray()) {
                     root.get("segments").forEach(segment ->
                             segment.get("words").forEach(wordNodes::add)
                     );
-                } else if (root.has("words")) {
+                } else if (root.has("words") && root.get("words").isArray()) {
                     root.get("words").forEach(wordNodes::add);
                 }
                 System.out.println("✅ Tổng số từ: " + wordNodes.size());
@@ -516,12 +546,31 @@
         private List<List<JsonNode>> groupWordsIntoSentences(List<JsonNode> words) {
             List<List<JsonNode>> sentences = new ArrayList<>();
             List<JsonNode> currentSentence = new ArrayList<>();
+            double PAUSE_THRESHOLD = 0.4; // seconds - ranh giới câu dựa trên khoảng ngắt hơi
 
-            for (JsonNode word : words) {
+            for (int i = 0; i < words.size(); i++) {
+                JsonNode word = words.get(i);
                 currentSentence.add(word);
                 String wordText = word.get("word").asText().toLowerCase();
-                // Simple heuristic: sentence ends with period, question mark, or exclamation
+
+                boolean isSentenceEnd = false;
+
+                // Cách 1: Dấu câu (nếu Whisper trả về)
                 if (wordText.matches(".*[.!?]$")) {
+                    isSentenceEnd = true;
+                }
+
+                // Cách 2: Pause time >= 0.4s giữa từ hiện tại và từ tiếp theo
+                if (!isSentenceEnd && i < words.size() - 1) {
+                    JsonNode nextWord = words.get(i + 1);
+                    double currentEnd = word.has("end") ? word.get("end").asDouble() : -1;
+                    double nextStart = nextWord.has("start") ? nextWord.get("start").asDouble() : -1;
+                    if (currentEnd >= 0 && nextStart >= 0 && (nextStart - currentEnd) >= PAUSE_THRESHOLD) {
+                        isSentenceEnd = true;
+                    }
+                }
+
+                if (isSentenceEnd) {
                     sentences.add(currentSentence);
                     currentSentence = new ArrayList<>();
                 }
@@ -546,7 +595,7 @@
         }
 
 
-        public PronunciationAnswer analyze(AzurePronunciationResult azureResult, String audioUrl, JsonNode root, int partNumber) throws IOException, InterruptedException {
+        public PronunciationAnswer analyze(String audioUrl, JsonNode root, int partNumber) throws IOException, InterruptedException {
             System.out.println("\n=======================================");
             System.out.println("🚀 STARTING PROSODY ANALYSIS");
             System.out.println("   Audio URL: " + audioUrl);
@@ -566,7 +615,7 @@
             // 4. Phân tích trọng âm từ (CHI TIẾT VỊ TRÍ)
             System.out.println("Trong am");
             List<WordInfo> wordInfoList = new ArrayList<>();
-            if (root.has("words")) {
+            if (root.has("words") && root.get("words").isArray()) {
                 int idx = 0;
                 for (JsonNode wordNode : root.get("words")) {
                     String w = wordNode.get("word").asText().toLowerCase();
@@ -575,15 +624,17 @@
                     wordInfoList.add(new WordInfo(w, start, end, idx));
                     idx++;
                 }
-            } else if (root.has("segments")) {
+            } else if (root.has("segments") && root.get("segments").isArray()) {
                 int idx = 0;
                 for (JsonNode segment : root.get("segments")) {
-                    for (JsonNode wordNode : segment.get("words")) {
-                        String w = wordNode.get("word").asText().toLowerCase();
-                        double start = wordNode.has("start") ? wordNode.get("start").asDouble() : -1;
-                        double end = wordNode.has("end") ? wordNode.get("end").asDouble() : -1;
-                        wordInfoList.add(new WordInfo(w, start, end, idx));
-                        idx++;
+                    if (segment.has("words") && segment.get("words").isArray()) {
+                        for (JsonNode wordNode : segment.get("words")) {
+                            String w = wordNode.get("word").asText().toLowerCase();
+                            double start = wordNode.has("start") ? wordNode.get("start").asDouble() : -1;
+                            double end = wordNode.has("end") ? wordNode.get("end").asDouble() : -1;
+                            wordInfoList.add(new WordInfo(w, start, end, idx));
+                            idx++;
+                        }
                     }
                 }
             }
@@ -714,13 +765,25 @@
                     }
                 }
 
+                // Set stress mismatches trước khi gọi AI scorer
+                result.setStressMismatchesDetailed(stressMismatchesDetailed
+                    .stream()
+                    .map(map -> new StressMismatch(
+                            (String) map.get("word"),
+                            (Integer) map.get("detectedPosition"),
+                            (Integer) map.get("standardPosition"),
+                            (Double) map.get("start"),
+                            (Double) map.get("end"),
+                            (Integer) map.get("index")
+                    )).collect(Collectors.toList())
+                );
+
                 // === Gọi AI để chấm điểm pronunciation ===
                 FeedBackAI feedback = callOpenAIScorePronunciation(
                         transcript,
                         result.getStressMismatchesDetailed(),
                         importantWords.stream().map(IntonationSentence::getText).collect(Collectors.toList()),
                         missingEmphasis.stream().map(IntonationSentence::getText).collect(Collectors.toList()),
-                        azureResult != null ? azureResult.getJsonResult() : null,
                         partNumber
                 );
                 result.setScore(feedback.getScore());
@@ -733,18 +796,6 @@
                 result.setOverEmphasis(overEmphasis);
                 result.setMissingEmphasis(missingEmphasis);
             }
-
-            result.setStressMismatchesDetailed(stressMismatchesDetailed
-                    .stream()
-                    .map(map -> new StressMismatch(
-                            (String) map.get("word"),
-                            (Integer) map.get("detectedPosition"),
-                            (Integer) map.get("standardPosition"),
-                            (Double) map.get("start"),
-                            (Double) map.get("end"),
-                            (Integer) map.get("index")
-                    )).collect(Collectors.toList())
-            );
 
             result.setStressTranscript(stressTranscript(transcript));
             result.setTranscript(transcript);

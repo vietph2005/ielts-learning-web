@@ -34,8 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import web.ielts.Test.service.AI.AzurePronunciationService;
-import web.ielts.Test.model.answer.speaking.AzurePronunciationResult;
 
 @Service
 public class DoTestService {
@@ -71,8 +69,6 @@ public class DoTestService {
     private WhisperService whisper;
     @Autowired
     private AiSpeakingService aiSpeakingService;
-    @Autowired
-    private AzurePronunciationService azurePronunciationService;
     @Autowired
     private FileUploadService fileUploadService;
 
@@ -396,22 +392,16 @@ public class DoTestService {
                         //Whisper
                         JsonNode transcript = whisper.transcribeWithTimestampsAndSyllables(s3UrlNotEncrypt);
                         System.out.println(transcript);
-                        File mp3File = prosodyService.downloadAudioFile(s3UrlNotEncrypt);
-                        File wavFile = prosodyService.convertMp3ToWav(mp3File);
-                        String transcriptText = transcript.has("text") ? transcript.get("text").asText() : null;
-                        //Azure
-                        AzurePronunciationResult azureResult = azurePronunciationService.assessAndSave(wavFile, transcriptText, s3UrlNotEncrypt);
 
                         //ThongSoCoBanProsody
                         FleCohAnswer prosodyFeatures = prosodyService.analyzeProsodyFeatures(s3UrlNotEncrypt, transcript);
-                        //PHan Viet
-                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(),1,prosodyFeatures,azureResult.getFluencyScore(),null);
+                        double fluencyScore = calculatePraatFluencyScore(prosodyFeatures);
 
-                        // Tích hợp Azure Pronunciation Assessment
+                        //PHan Viet
+                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(), 1, prosodyFeatures, fluencyScore, null);
 
                         //Praat va AI
-                        PronunciationAnswer pa = prosodyService.analyze(azureResult,s3UrlNotEncrypt,transcript,1);
-                        pa.setAzureResult(azureResult);
+                        PronunciationAnswer pa = prosodyService.analyze(s3UrlNotEncrypt, transcript, 1);
                         qa.setTranscript(sp.getTranscript());
                         qa.setGrammarAnswer(sp.getGrammarAnswer());
                         qa.setLexicalAnswer(sp.getLexicalAnswer());
@@ -459,28 +449,21 @@ public class DoTestService {
                         //Whisper
                         JsonNode transcript = whisper.transcribeWithTimestampsAndSyllables(s3UrlNotEncrypt);
                         System.out.println(transcript);
-                        File mp3File = prosodyService.downloadAudioFile(s3UrlNotEncrypt);
-                        File wavFile = prosodyService.convertMp3ToWav(mp3File);
-                        String transcriptText = transcript.has("text") ? transcript.get("text").asText() : null;
-                        //Azure
-                        AzurePronunciationResult azureResult = azurePronunciationService.assessAndSave(wavFile, transcriptText, s3UrlNotEncrypt);
 
                         //ThongSoCoBanProsody
                         FleCohAnswer prosodyFeatures = prosodyService.analyzeProsodyFeatures(s3UrlNotEncrypt, transcript);
-                        //PHan Viet
-                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, part2.getQuestion(),1,prosodyFeatures,azureResult.getFluencyScore(),null);
+                        double fluencyScore = calculatePraatFluencyScore(prosodyFeatures);
 
-                        // Tích hợp Azure Pronunciation Assessment
+                        //PHan Viet
+                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, part2.getQuestion(), 1, prosodyFeatures, fluencyScore, null);
 
                         //Praat va AI
-                        PronunciationAnswer pa = prosodyService.analyze(azureResult,s3UrlNotEncrypt,transcript,2);
-                        pa.setAzureResult(azureResult);
+                        PronunciationAnswer pa = prosodyService.analyze(s3UrlNotEncrypt, transcript, 2);
                         part2.setTranscript(sp.getTranscript());
                         part2.setGrammarAnswer(sp.getGrammarAnswer());
                         part2.setLexicalAnswer(sp.getLexicalAnswer());
                         part2.setFluencyCohAnswer(sp.getFluencyCohAnswer());
                         part2.setPronunciationAnswer(pa);
-                        //part2.setAzurePronunciationResult(azureResult); // Cần thêm trường này vào model nếu muốn lưu
                         double grammar = sp.getGrammarAnswer().getScore();
                         double lexical = sp.getLexicalAnswer().getScore();
                         double fluency = sp.getFluencyCohAnswer().getScore();
@@ -527,26 +510,21 @@ public class DoTestService {
                         //Whisper
                         JsonNode transcript = whisper.transcribeWithTimestampsAndSyllables(s3UrlNotEncrypt);
                         System.out.println(transcript);
-                        File mp3File = prosodyService.downloadAudioFile(s3UrlNotEncrypt);
-                        File wavFile = prosodyService.convertMp3ToWav(mp3File);
-                        String transcriptText = transcript.has("text") ? transcript.get("text").asText() : null;
-                        //Azure
-                        AzurePronunciationResult azureResult = azurePronunciationService.assessAndSave(wavFile, transcriptText, s3UrlNotEncrypt);
 
                         //ThongSoCoBanProsody
                         FleCohAnswer prosodyFeatures = prosodyService.analyzeProsodyFeatures(s3UrlNotEncrypt, transcript);
+                        double fluencyScore = calculatePraatFluencyScore(prosodyFeatures);
+
                         //PHan Viet
-                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(),1,prosodyFeatures,azureResult.getFluencyScore(),null);
-                        // Tích hợp Azure Pronunciation Assessment
+                        SpeakingAnswerQuestion sp = aiSpeakingService.evaluateSpeaking(transcript, qa.getQuestion(), 1, prosodyFeatures, fluencyScore, null);
 
                         //Praat va AI
-                        PronunciationAnswer pa = prosodyService.analyze(azureResult,s3UrlNotEncrypt,transcript,3);
+                        PronunciationAnswer pa = prosodyService.analyze(s3UrlNotEncrypt, transcript, 3);
                         qa.setTranscript(sp.getTranscript());
                         qa.setGrammarAnswer(sp.getGrammarAnswer());
                         qa.setLexicalAnswer(sp.getLexicalAnswer());
                         qa.setFluencyCohAnswer(sp.getFluencyCohAnswer());
                         qa.setPronunciationAnswer(pa);
-                        //qa.setAzurePronunciationResult(azureResult); // Cần thêm trường này vào model nếu muốn lưu
                         //totalScore += eval.getScore();
                         double grammar = sp.getGrammarAnswer().getScore();
                         double lexical = sp.getLexicalAnswer().getScore();
@@ -579,6 +557,31 @@ public class DoTestService {
         double avgBand = calculateIeltsRounding(band / 3.0);
         speakingAnswer.setBand(avgBand);
     }
+    private double calculatePraatFluencyScore(FleCohAnswer basicFluent) {
+        if (basicFluent == null) return 50.0;
+        double speechRate = 0;
+        int pauseCount = 0;
+        try {
+            speechRate = Double.parseDouble(basicFluent.getSpeechRate());
+        } catch (Exception e) {}
+        try {
+            pauseCount = Integer.parseInt(basicFluent.getPauseCount());
+        } catch (Exception e) {}
+
+        double bandScore = 5.0;
+        if (speechRate >= 5.0 && pauseCount <= 1) bandScore = 9.0;
+        else if (speechRate >= 4.5 && pauseCount <= 3) bandScore = 8.0;
+        else if (speechRate >= 4.0 && pauseCount <= 5) bandScore = 7.0;
+        else if (speechRate >= 3.5 && pauseCount <= 7) bandScore = 6.0;
+        else if (speechRate >= 3.0 && pauseCount <= 10) bandScore = 5.0;
+        else if (speechRate >= 2.5 && pauseCount <= 13) bandScore = 4.0;
+        else if (speechRate >= 2.0 && pauseCount <= 16) bandScore = 3.0;
+        else if (speechRate >= 1.5 && pauseCount <= 20) bandScore = 2.0;
+        else bandScore = 1.0;
+
+        return ((bandScore - 1.0) / 8.0) * 100.0;
+    }
+
     private String extractFileName(String blobUrl) {
 
         try {
