@@ -25,7 +25,14 @@ public class ResultService {
     private SpeakingAnswerRepository speakingAnswerRepository;
 
     @Autowired
+    private web.ielts.Test.result.repository.WritingAnswerRepository writingAnswerRepository;
+
+    @Autowired
     private ListeningRepository listeningRepository;
+
+    public Optional<web.ielts.Test.result.model.writing.WritingAnswer> findWritingById(String answerId) {
+        return writingAnswerRepository.findById(answerId);
+    }
 
     @Autowired
     private ReadingRepository readingRepository;

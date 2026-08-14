@@ -1,130 +1,103 @@
 package web.ielts.User.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import web.ielts.Auth.repository.AuthRepository;
-import web.ielts.Auth.service.AuthService;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.UnauthorizedException;
 import web.ielts.User.User;
 import web.ielts.User.UserDTO;
 import web.ielts.User.UserService;
-import web.ielts.User.repository.UserRepository;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/users")
 public class UserController {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private AuthRepository authRepository;
-
-    @Autowired
-    private AuthService authService;
 
     @Autowired
     private UserService userService;
 
-    // ✅ Lấy thông tin user theo username
+    // Lấy danh sách users (có thể lọc theo role)
+    @GetMapping
+    public ApiResponse<List<UserDTO>> getUsers(@RequestParam(required = false) String role) {
+        List<UserDTO> dtoList = userService.getUsers(role);
+        return ApiResponse.success(dtoList, "Lấy danh sách người dùng thành công");
+    }
+
+    // Lấy thông tin user hiện tại
+    @GetMapping("/me")
+    public ApiResponse<UserDTO> getCurrentUser(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new UnauthorizedException("Không có thông tin đăng nhập");
+        }
+        User updatedUser = userService.resetPremiumIfExpired(user);
+        return ApiResponse.success(new UserDTO(updatedUser), "Lấy thông tin tài khoản thành công");
+    }
+
+    // Lấy thông tin user theo username
     @GetMapping("/{username}")
-    public ResponseEntity<?> getUserByEmail(@PathVariable String username) {
-        Optional<User> userOpt = userRepository.findById(username);
-        if (userOpt.isPresent()) {
-            return ResponseEntity.ok(new UserDTO(userOpt.get()));
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    public ApiResponse<UserDTO> getUserByUsername(@PathVariable String username) {
+        UserDTO userDTO = userService.getUserByUsername(username);
+        return ApiResponse.success(userDTO, "Lấy thông tin người dùng thành công");
     }
 
-    // ✅ Cập nhật thông tin user
+    // Cập nhật thông tin user
     @PutMapping("/{username}")
-    public ResponseEntity<?> updateUser(@PathVariable String username, @RequestBody UserDTO updatedUserDto) {
-        Optional<User> userOpt = userRepository.findById(username);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        User existingUser = userOpt.get();
-        existingUser.setFirstName(updatedUserDto.getFirstName());
-        existingUser.setLastName(updatedUserDto.getLastName());
-        existingUser.setBirthDate(updatedUserDto.getBirthDate());
-        existingUser.setGender(updatedUserDto.getGender());
-        existingUser.setPhone(updatedUserDto.getPhone());
-
-        userRepository.save(existingUser);
-
-        return ResponseEntity.ok(new UserDTO(existingUser));
+    public ApiResponse<UserDTO> updateUser(@PathVariable String username, @RequestBody UserDTO updatedUserDto) {
+        UserDTO userDTO = userService.updateUser(username, updatedUserDto);
+        return ApiResponse.success(userDTO, "Cập nhật thông tin thành công");
     }
 
-    // ✅ Gộp nâng cấp premium từ cả AuthenticationPrincipal và JWT token
-    @PostMapping("/upgrade-premium")
-    public ResponseEntity<?> upgradePremium(
+    // Nâng cấp premium
+    @PostMapping("/me/premium")
+    public ApiResponse<String> upgradePremium(
             @AuthenticationPrincipal User user,
             @CookieValue(value = "jwt_token", required = false) String token
     ) {
-        try {
-            if (user != null) {
-                System.out.println("de bug em hoat dong ko");
-                userService.upgradeToPremium(user.getEmail());
-                return ResponseEntity.ok("Đã nâng cấp premium thành công (qua authentication principal)");
-            }
-
-            if (token != null && !token.isEmpty()) {
-                String username = authService.getUsernameFromToken(token);
-                User tokenUser = authRepository.findByEmail(username);
-                if (tokenUser == null) {
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-                }
-
-                tokenUser.setPremium(true);
-                authRepository.save(tokenUser);
-                return ResponseEntity.ok("Đã nâng cấp premium thành công (qua token)");
-            }
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Không có thông tin đăng nhập");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi: " + e.getMessage());
+        if (user != null) {
+            userService.upgradeToPremium(user.getEmail());
+            return ApiResponse.success("Đã nâng cấp premium thành công");
         }
-    }
 
-    // ✅ Lấy thông tin người dùng và tự reset premium nếu hết hạn
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Không có thông tin đăng nhập");
+        if (token != null && !token.isEmpty()) {
+            userService.upgradePremiumByToken(token);
+            return ApiResponse.success("Đã nâng cấp premium thành công");
         }
-        User updatedUser = userService.resetPremiumIfExpired(user);
-        return ResponseEntity.ok(new UserDTO(updatedUser));
+
+        throw new UnauthorizedException("Không có thông tin đăng nhập");
     }
 
-     //Lấy danh sách tất cả user (cho manager)
-    @GetMapping("/all")
-    public List<UserDTO> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        return users.stream().map(UserDTO::new).collect(Collectors.toList());
+    // Cập nhật toàn bộ roles của user (dành cho Admin)
+    @PutMapping("/{username}/roles")
+    public ApiResponse<UserDTO> updateUserRoles(@PathVariable String username, @RequestBody Map<String, Object> data) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) data.get("roles");
+        UserDTO userDTO = userService.updateUserRoles(username, roles);
+        return ApiResponse.success(userDTO, "Cập nhật vai trò thành công");
     }
 
-     //Lấy danh sách user theo role (cho manager)
-    @GetMapping("/role/{role}")
-    public List<UserDTO> getUsersByRole(@PathVariable String role) {
-        List<User> users = userRepository.findAll();
-        return users.stream()
-            .filter(user -> user.getRole() != null && user.getRole().contains(role))
-            .map(UserDTO::new)
-            .collect(Collectors.toList());
+    // Thêm vai trò cho user (dành cho Admin)
+    @PostMapping("/{username}/roles")
+    public ApiResponse<UserDTO> addRoleToUser(@PathVariable String username, @RequestBody Map<String, Object> data) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) data.get("roles");
+        UserDTO userDTO = userService.addRoleToUser(username, roles);
+        return ApiResponse.success(userDTO, "Thêm vai trò thành công");
     }
 
-    // Xóa user theo email (cho manager)
+    // Xóa vai trò khỏi user (dành cho Admin)
+    @DeleteMapping("/{username}/roles/{role}")
+    public ApiResponse<UserDTO> deleteRoleFromUser(@PathVariable String username, @PathVariable String role) {
+        UserDTO userDTO = userService.deleteRoleFromUser(username, role);
+        return ApiResponse.success(userDTO, "Xóa vai trò thành công");
+    }
+
+    // Xóa user theo username (dành cho Admin / Manager)
     @DeleteMapping("/{username}")
-    public ResponseEntity<?> deleteUser(@PathVariable String username) {
-        userRepository.deleteById(username);
-        return ResponseEntity.ok().build();
+    public ApiResponse<Void> deleteUser(@PathVariable String username) {
+        userService.deleteUser(username);
+        return ApiResponse.success(null, "Xóa người dùng thành công");
     }
 }

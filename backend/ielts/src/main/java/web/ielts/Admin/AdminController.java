@@ -1,77 +1,49 @@
 package web.ielts.Admin;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import web.ielts.User.User;
+import web.ielts.Common.dto.ApiResponse;
 import web.ielts.User.UserDTO;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/getuser")
+@RequestMapping("/admin/users")
 public class AdminController {
+
     @Autowired
     private AdminService adminService;
-    @GetMapping("/{role}")
-    public List<UserDTO> getUsersByRole(@PathVariable String role) {
 
-        return adminService.getUsersByRole(role);
+    @GetMapping
+    public ApiResponse<List<UserDTO>> getUsersByRole(@RequestParam(required = false) String role) {
+        List<UserDTO> users = role != null && !role.isEmpty()
+                ? adminService.getUsersByRole(role)
+                : adminService.getUsersByRole("");
+        return ApiResponse.success(users, "Lấy danh sách người dùng theo vai trò thành công");
     }
 
-
-
-
-    /**
-     * API cập nhật toàn bộ danh sách roles cho người dùng.
-     * Frontend gửi lên email và danh sách roles mới để thay thế.
-     * Method: PUT
-     */
-
-    @PutMapping("/updateuser")
-    public ResponseEntity<?> updateUser(@RequestBody Map<String, Object> data) {
-        System.out.println("dang update");
-
-        String email = (String) data.get("email");
-        List<String> roles = (List<String>) data.get("roles"); // 👈 nhận danh sách roles
-        System.out.println(roles);
+    @PutMapping("/{email}/roles")
+    public ApiResponse<String> updateUserRoles(@PathVariable String email, @RequestBody Map<String, Object> data) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) data.get("roles");
         adminService.updateUser(email, roles);
-        return ResponseEntity.ok("Updated");
+        return ApiResponse.success("Cập nhật vai trò thành công");
     }
-    /**
-     * API thêm vai trò cho người dùng.
-     * Lưu ý: Hiện tại vẫn sử dụng lại hàm updateUser → cần frontend gửi roles sau khi đã thêm.
-     * Method: POST
-     */
-    @PostMapping("/addrole")
-    public ResponseEntity<?> addRole(@RequestBody Map<String, Object> data) {
-        System.out.println("dang add");
 
-        String email = (String) data.get("email");
-        List<String> roles = (List<String>) data.get("roles"); // 👈 nhận danh sách roles
-        System.out.println(roles);
+    @PostMapping("/{email}/roles")
+    public ApiResponse<String> addRole(@PathVariable String email, @RequestBody Map<String, Object> data) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) data.get("roles");
         adminService.updateUser(email, roles);
-        return ResponseEntity.ok("Updated");
+        return ApiResponse.success("Thêm vai trò thành công");
     }
-    /**
-     * API xóa một vai trò khỏi người dùng.
-     * Hiện tại cũng chỉ đơn giản là update lại danh sách roles sau khi frontend đã xóa.
-     * Method: DELETE
-     */
-    @DeleteMapping("/deleterole")
-    public ResponseEntity<?> deleteRole(@RequestBody Map<String, Object> data) {
-        System.out.println("dang delete");
 
-        String email = (String) data.get("email");
-        String roleToDelete = (String)data.get("roleToDelete");
-        List<String> roles = (List<String>) data.get("roles"); // 👈 nhận danh sách roles
-        System.out.println(roles);
+    @DeleteMapping("/{email}/roles")
+    public ApiResponse<String> deleteRole(@PathVariable String email, @RequestBody Map<String, Object> data) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) data.get("roles");
         adminService.updateUser(email, roles);
-        return ResponseEntity.ok("Updated");
+        return ApiResponse.success("Xóa vai trò thành công");
     }
 }

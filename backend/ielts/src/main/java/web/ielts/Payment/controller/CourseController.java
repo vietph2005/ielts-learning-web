@@ -1,45 +1,41 @@
 package web.ielts.Payment.controller;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.ResourceNotFoundException;
 import web.ielts.Payment.model.Course;
 import web.ielts.Payment.service.CourseService;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/courses")
+@RequestMapping("/courses")
 public class CourseController {
 
     @Autowired
     private CourseService courseService;
 
-    // [GET] /api/courses -> Lấy tất cả các khóa học
     @GetMapping
-    public ResponseEntity<List<Course>> getAllCourses() {
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ApiResponse<List<Course>> getAllCourses() {
+        return ApiResponse.success(courseService.getAllCourses(), "Lấy danh sách khóa học thành công");
     }
 
-    // [GET] /api/courses/{id} -> Lấy 1 khóa học theo id
     @GetMapping("/{id}")
-    public ResponseEntity<Course> getCourseById(@PathVariable String id) {
-        return courseService.getCourseById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ApiResponse<Course> getCourseById(@PathVariable String id) {
+        Course course = courseService.getCourseById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khóa học với ID: " + id));
+        return ApiResponse.success(course, "Lấy thông tin khóa học thành công");
     }
 
-    // [POST] /api/courses -> Thêm mới khóa học (tuỳ chọn cho Admin)
     @PostMapping
-    public ResponseEntity<Course> createCourse(@RequestBody Course course) {
-        return ResponseEntity.ok(courseService.saveCourse(course));
+    public ApiResponse<Course> createCourse(@RequestBody Course course) {
+        return ApiResponse.success(courseService.saveCourse(course), "Tạo khóa học thành công");
     }
 
-    // [DELETE] /api/courses/{id} -> Xoá khóa học (tuỳ chọn cho Admin)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
+    public ApiResponse<Void> deleteCourse(@PathVariable String id) {
         courseService.deleteCourse(id);
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success(null, "Xóa khóa học thành công");
     }
 }

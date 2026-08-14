@@ -6,16 +6,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import web.ielts.History.dto.HistoryTest;
-import web.ielts.Test.model.TestAnswer;
-import web.ielts.Test.model.answer.listening.ListeningAnswer;
-import web.ielts.Test.model.answer.reading.ReadingAnswer;
-import web.ielts.Test.model.answer.speaking.SpeakingAnswer;
-import web.ielts.Test.model.answer.writing.WritingAnswer;
-import web.ielts.Test.repository.answer.ListeningAnswerRepository;
-import web.ielts.Test.repository.answer.ReadingAnswerRepository;
-import web.ielts.Test.repository.answer.SpeakingAnswerRepository;
-import web.ielts.Test.repository.answer.WritingAnswerRepository;
-import web.ielts.Test.service.TestAnswerService;
+import web.ielts.Test.result.model.TestAnswer;
+import web.ielts.Test.result.model.listening.ListeningAnswer;
+import web.ielts.Test.result.model.reading.ReadingAnswer;
+import web.ielts.Test.result.model.speaking.SpeakingAnswer;
+import web.ielts.Test.result.model.writing.WritingAnswer;
+import web.ielts.Test.result.repository.ListeningAnswerRepository;
+import web.ielts.Test.result.repository.ReadingAnswerRepository;
+import web.ielts.Test.result.repository.SpeakingAnswerRepository;
+import web.ielts.Test.result.repository.WritingAnswerRepository;
+import web.ielts.Test.result.service.TestAnswerService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -131,7 +131,6 @@ public class HistoryServiceTest {
         assertEquals(1, result.size());
         assertEquals("sub1", result.get(0).getId());
         assertEquals("fulltest", result.get(0).getSkill());
-        // Xác minh xem testID có được gán bằng testId của đề thi thay vì ID bản ghi nộp bài (sửa lỗi logic)
         assertEquals("testFulltest", result.get(0).getTestID());
     }
 }

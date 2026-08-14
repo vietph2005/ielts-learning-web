@@ -1,123 +1,102 @@
 package web.ielts.Auth.controller;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpHeaders;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import web.ielts.Auth.dto.AuthDTO;
 import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.service.AuthService;
-import web.ielts.User.User;
+import web.ielts.Common.dto.ApiResponse;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/auth")
 public class AuthController {
 
     @Autowired
-    private AuthService authservice;
-
+    private AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterDTO registerDto) {
-
-        return authservice.register(registerDto);
+    public ApiResponse<String> register(@RequestBody RegisterDTO registerDto) {
+        return authService.register(registerDto);
     }
-    @PostMapping("/forgotpassword")
-    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
-         String email = request.get("email");
 
-
-        return authservice.forgotpassword(email);
-
+    @PostMapping("/forgot-password")
+    public ApiResponse<String> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        return authService.forgotPassword(email);
     }
+
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+    public ApiResponse<String> resetPassword(@RequestBody Map<String, String> request) {
         String token = request.get("token");
         String newPassword = request.get("newPassword");
-
-        return authservice.resetPassword(token, newPassword);
+        return authService.resetPassword(token, newPassword);
     }
+
     @GetMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
-
-
-        return authservice.verifyEmail(token);
+    public ResponseEntity<ApiResponse<String>> verifyEmail(@RequestParam("token") String token) {
+        return authService.verifyEmail(token);
     }
-    @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody AuthDTO loginRequest) {
 
-       // in ra /loginadmin
-        return authservice.login(
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody AuthDTO loginRequest) {
+        return authService.login(
                 loginRequest.getEmail(),
                 loginRequest.getPassword(),
                 loginRequest.getRole()
-
         );
     }
 
-    @GetMapping("/user-info")
-    public ResponseEntity<?> getUserInfo(@CookieValue(value = "jwt_token", required = false) String token) {
+    @GetMapping("/me")
+    public ApiResponse<Map<String, Object>> getUserInfo(@CookieValue(value = "jwt_token", required = false) String token) {
+        String username = authService.getUsernameFromToken(token);
+        String role = authService.getRoleFromToken(token);
+        boolean isPremium = authService.isPremium(token);
 
-        try {
-            String username = authservice.getUsernameFromToken(token);
-           String role = authservice.getRoleFromToken(token);
-            boolean isPremium = authservice.isPremium(token);
+        Map<String, Object> data = new HashMap<>();
+        data.put("username", username);
+        data.put("role", role);
+        data.put("isPremium", isPremium);
 
-            return ResponseEntity.ok(Map.of(
-                    "username", username,
-                    "role", role,
-                       "isPremium",isPremium
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing token");
-        }
+        return ApiResponse.success(data, "Lấy thông tin người dùng thành công");
     }
-    @GetMapping("/update-info")
-    public ResponseEntity<?> getUserUpdateInfo(@CookieValue(value = "jwt_token", required = false) String token) {
-        try {
-            String username = authservice.getUsernameFromToken(token);
-            String role = authservice.getRoleFromToken(token);
-            boolean isPremium = authservice.updatePrenium(username);
 
-            // Tạo lại JWT mới với trạng thái premium mới nhất
-            ResponseCookie newJwtCookie = authservice.createJwtCookie(username, role, isPremium);
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserUpdateInfo(@CookieValue(value = "jwt_token", required = false) String token) {
+        String username = authService.getUsernameFromToken(token);
+        String role = authService.getRoleFromToken(token);
+        boolean isPremium = authService.updatePremium(username);
 
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, newJwtCookie.toString())
-                    .body(Map.of(
-                            "username", username,
-                            "role", role,
-                            "isPremium", isPremium
-                    ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing token");
-        }
+        ResponseCookie newJwtCookie = authService.createJwtCookie(username, role, isPremium);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("username", username);
+        data.put("role", role);
+        data.put("isPremium", isPremium);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, newJwtCookie.toString())
+                .body(ApiResponse.success(data, "Cập nhật token thành công"));
     }
+
     @PostMapping("/logout")
-public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
-    List<ResponseCookie> cookies = authservice.logout(request);
+    public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest request) {
+        List<ResponseCookie> cookies = authService.logout(request);
 
-    HttpHeaders headers = new HttpHeaders();
-    for (ResponseCookie cookie : cookies) {
-        headers.add(HttpHeaders.SET_COOKIE, cookie.toString());
+        HttpHeaders headers = new HttpHeaders();
+        for (ResponseCookie cookie : cookies) {
+            headers.add(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(ApiResponse.success("Đăng xuất thành công", "Đăng xuất thành công"));
     }
-
-    Map<String, Object> response = new HashMap<>();
-    response.put("status", "success");
-    response.put("message", "Logged out");
-
-    return ResponseEntity.ok()
-            .headers(headers)
-            .body(response);
-}
 }

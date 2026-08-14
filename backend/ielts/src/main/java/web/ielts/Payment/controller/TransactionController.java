@@ -1,90 +1,73 @@
 package web.ielts.Payment.controller;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.BadRequestException;
+import web.ielts.Common.exception.ResourceNotFoundException;
+import web.ielts.Common.exception.UnauthorizedException;
 import web.ielts.Payment.model.PaymentTransactions;
-import web.ielts.Payment.repository.TransactionRepository;
+
 import web.ielts.Payment.service.TransactionService;
 
 import java.security.Principal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/transactions")
 public class TransactionController {
 
     @Autowired
     private TransactionService service;
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-
-    @GetMapping("payment/transactions")
-    public List<PaymentTransactions> getAllTransactions() {
-        return transactionRepository.findAll();
+    @GetMapping
+    public ApiResponse<List<PaymentTransactions>> getAllTransactions() {
+        return ApiResponse.success(service.getAll(), "Lấy danh sách giao dịch thành công");
     }
 
-    // Lấy 1 giao dịch theo ID
     @GetMapping("/{id}")
-    public PaymentTransactions getById(@PathVariable String id) {
-        return service.getById(id);
+    public ApiResponse<PaymentTransactions> getById(@PathVariable String id) {
+        PaymentTransactions transaction = service.getById(id);
+        if (transaction == null) {
+            throw new ResourceNotFoundException("Không tìm thấy giao dịch với ID: " + id);
+        }
+        return ApiResponse.success(transaction, "Lấy chi tiết giao dịch thành công");
     }
 
-    // Tạo mới giao dịch
     @PostMapping
-    public PaymentTransactions create(@RequestBody PaymentTransactions transaction) {
-        return service.save(transaction);
-    }
-
-    // Xóa giao dịch theo ID
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        service.delete(id);
-    }
-
-    // Lưu giao dịch từ client gửi đến (sử dụng DTO và Principal để lấy email từ token)
-    @PostMapping("/transactions/save")
-    public ResponseEntity<String> recordTransaction(@RequestBody PaymentTransactions transaction, Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized: missing user info");
+    public ApiResponse<PaymentTransactions> createTransaction(@RequestBody PaymentTransactions transaction, Principal principal) {
+        if (principal != null && (transaction.getEmail() == null || transaction.getEmail().isEmpty())) {
+            transaction.setEmail(principal.getName());
         }
-        // Validate required fields
         if (transaction.getType() == null || transaction.getAmount() == 0 || transaction.getPaymentMethod() == null || transaction.getStatus() == null || transaction.getTransactionId() == null) {
-            return ResponseEntity.badRequest().body("Thiếu thông tin giao dịch bắt buộc");
+            throw new BadRequestException("Thiếu thông tin giao dịch bắt buộc");
+        }
+        PaymentTransactions saved = service.save(transaction);
+        return ApiResponse.success(saved, "Lưu giao dịch thành công");
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable String id) {
+        service.delete(id);
+        return ApiResponse.success(null, "Xóa giao dịch thành công");
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<List<PaymentTransactions>> getMyTransactions(Principal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("Yêu cầu đăng nhập");
         }
         String email = principal.getName();
-        service.saveTransaction(
-                email,
-                transaction.getType(),
-                transaction.getAmount(),
-                transaction.getPaymentMethod(),
-                transaction.getStatus(),
-                transaction.getMessage(),
-                transaction.getTransactionId()
-        );
-        return ResponseEntity.ok("Giao dịch đã được lưu");
+        return ApiResponse.success(service.getUserTransactions(email), "Lấy danh sách giao dịch của bạn thành công");
     }
 
-    // Lấy danh sách giao dịch của người dùng hiện tại
-    @GetMapping("/user/transactions")
-    public ResponseEntity<List<PaymentTransactions>> getMyTransactions(Principal principal) {
-        String email = principal.getName();
-        return ResponseEntity.ok(service.getUserTransactions(email));
-    }
-
-    // API trả về thống kê tổng tiền theo ngày/tuần/tháng/năm
-    @GetMapping("/payment/transactions/statistics")
-    public List<Stat> getStatistics(
+    @GetMapping("/statistics")
+    public ApiResponse<List<Stat>> getStatistics(
             @RequestParam(defaultValue = "month") String type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime endDate
@@ -125,17 +108,17 @@ public class TransactionController {
                     break;
             }
 
-            keyToTotal.put(key, keyToTotal.getOrDefault(key, 0L) + (long)tx.getAmount());
+            keyToTotal.put(key, keyToTotal.getOrDefault(key, 0L) + (long) tx.getAmount());
         }
 
-        // Trả về danh sách đã sắp xếp theo key (ngày/tháng/năm/tuần)
-        return keyToTotal.entrySet().stream()
+        List<Stat> stats = keyToTotal.entrySet().stream()
                 .map(e -> new Stat(e.getKey(), e.getValue()))
                 .sorted(Comparator.comparing(Stat::getKey))
                 .collect(Collectors.toList());
+
+        return ApiResponse.success(stats, "Lấy thống kê doanh thu thành công");
     }
 
-    // DTO thống kê
     public static class Stat {
         private String key;
         private long totalAmount;

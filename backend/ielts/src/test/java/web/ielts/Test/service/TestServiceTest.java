@@ -5,10 +5,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import web.ielts.Test.dto.ListTest;
-import web.ielts.Test.model.Listening;
-import web.ielts.Test.model.Reading;
-import web.ielts.Test.repository.*;
+import web.ielts.Test.dotest.dto.ListTest;
+import web.ielts.Test.dotest.model.Listening;
+import web.ielts.Test.dotest.model.Reading;
+import web.ielts.Test.dotest.repository.*;
+import web.ielts.Test.dotest.service.TestService;
 
 import java.util.List;
 import java.util.Map;
@@ -39,12 +40,12 @@ public class TestServiceTest {
 
     @Test
     void testGetTestsGroupedByYear() {
-        web.ielts.Test.model.Test t1 = new web.ielts.Test.model.Test();
+        web.ielts.Test.dotest.model.Test t1 = new web.ielts.Test.dotest.model.Test();
         t1.setTestId("test1");
         t1.setTestTitle("IELTS Academic Test 1");
         t1.setCreatedAt("2025-10-12");
 
-        web.ielts.Test.model.Test t2 = new web.ielts.Test.model.Test();
+        web.ielts.Test.dotest.model.Test t2 = new web.ielts.Test.dotest.model.Test();
         t2.setTestId("test2");
         t2.setTestTitle("IELTS General Test 1");
         t2.setCreatedAt("2026-05-15");
@@ -61,7 +62,7 @@ public class TestServiceTest {
 
     @Test
     void testGetListeningTestsByYear() {
-        web.ielts.Test.model.Test t = new web.ielts.Test.model.Test();
+        web.ielts.Test.dotest.model.Test t = new web.ielts.Test.dotest.model.Test();
         t.setTestId("test1");
         t.setTestTitle("IELTS Listening 1");
         t.setCreatedAt("2025-10-12");
@@ -80,7 +81,7 @@ public class TestServiceTest {
 
     @Test
     void testGetReadingTestsByYear() {
-        web.ielts.Test.model.Test t = new web.ielts.Test.model.Test();
+        web.ielts.Test.dotest.model.Test t = new web.ielts.Test.dotest.model.Test();
         t.setTestId("test2");
         t.setTestTitle("IELTS Reading 1");
         t.setCreatedAt("2026-05-15");

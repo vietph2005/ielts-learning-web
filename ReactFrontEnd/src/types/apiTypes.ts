@@ -1,3 +1,22 @@
+export interface ApiResponse<T = any> {
+    statusCode: number;
+    success: boolean;
+    message: string;
+    data: T;
+    errorCode?: string | null;
+    timestamp: string;
+}
+
+export interface PageResponse<T = any> {
+    content: T[];
+    pageNumber: number;
+    currentPage: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    isLast: boolean;
+}
+
 export interface ExerciseSection {
     question: string | string[];
     options?: string[];

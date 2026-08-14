@@ -5,11 +5,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import web.ielts.Test.model.answer.writing.TaskWritingAnswer;
-import web.ielts.Test.model.answer.writing.WritingAnswer;
-import web.ielts.Test.repository.ReadingRepository;
-import web.ielts.Test.repository.answer.ReadingAnswerRepository;
-import web.ielts.Test.repository.answer.WritingAnswerRepository;
+import web.ielts.Test.dotest.repository.ReadingRepository;
+import web.ielts.Test.dotest.service.ReadingTestService;
+import web.ielts.Test.dotest.service.WritingTestService;
+import web.ielts.Test.result.model.writing.TaskWritingAnswer;
+import web.ielts.Test.result.model.writing.WritingAnswer;
+import web.ielts.Test.result.repository.ReadingAnswerRepository;
+import web.ielts.Test.result.repository.WritingAnswerRepository;
+import web.ielts.Test.result.service.IeltsScoringUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -71,13 +74,10 @@ class DoTestServiceTest {
         answer.setTask1(task1);
         answer.setTask2(task2);
 
-        // Mock repository save
         when(writingAnswerRepository.save(any(WritingAnswer.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WritingAnswer result = writingTestService.saveWritingAnswer(answer);
 
-        // (6.0 + 7.0*2) / 3 = 6.666...
-        // 6.666... làm tròn theo quy tắc IELTS -> 6.5
         assertEquals(6.5, result.getBand());
     }
 }

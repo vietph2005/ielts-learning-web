@@ -1,205 +1,67 @@
 package web.ielts.Test.addtest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import web.ielts.Test.dotest.model.*;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.ResourceNotFoundException;
 import web.ielts.Test.addtest.model.*;
-import web.ielts.Test.dotest.repository.*;
-import web.ielts.Test.addtest.repository.*;
 import web.ielts.Test.addtest.service.AddTestService;
 
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/test-requests")
 public class AddTestController {
 
     @Autowired
-    private AddTestService testService;
-    @Autowired
     private AddTestService addTestService;
-    @Autowired
-    private AddTestRepository addTestRepo;
-    @Autowired
-    private AddListeningRepository addListeningRepo;
-    @Autowired
-    private AddReadingRepository addReadingRepo;
-    @Autowired
-    private AddWritingRepository addWritingRepo;
-    @Autowired
-    private AddSpeakingRepository addSpeakingRepo;
-    @Autowired
-    private TestRepository testRepo;
-    @Autowired
-    private ListeningRepository listeningRepo;
-    @Autowired
-    private ReadingRepository readingRepo;
-    @Autowired
-    private WritingRepository writingRepo;
-    @Autowired
-    private SpeakingRepository speakingRepo;
 
-    @PostMapping("/teacher/request-test")
-    public ResponseEntity<String> saveTest(@RequestBody AddTestRequest request) {
-        try {
-            testService.saveFullTest(request);
-            return ResponseEntity.ok("Test saved successfully!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Failed to save test");
-        }
+    @PostMapping
+    public ApiResponse<String> saveTest(@RequestBody AddTestRequest request) {
+        addTestService.saveFullTest(request);
+        return ApiResponse.success("Lưu yêu cầu đề thi thành công!");
     }
 
-    @GetMapping("/teacher/tests")
-    public ResponseEntity<List<Map<String, Object>>> getTeacherTests() {
-        try {
-            List<Map<String, Object>> tests = testService.getAllTestsForTeacher();
-            return ResponseEntity.ok(tests);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
+    @GetMapping
+    public ApiResponse<?> getTestRequests(@RequestParam(required = false) String role) {
+        if ("teacher".equalsIgnoreCase(role)) {
+            List<Map<String, Object>> tests = addTestService.getAllTestsForTeacher();
+            return ApiResponse.success(tests, "Lấy danh sách yêu cầu đề thi cho giáo viên thành công");
         }
+        List<AddTest> tests = addTestService.getAllPendingTests();
+        return ApiResponse.success(tests, "Lấy toàn bộ danh sách yêu cầu đề thi thành công");
     }
 
-    @GetMapping("/teacher/test/{testId}")
-    public ResponseEntity<Map<String, Object>> getTestForEdit(@PathVariable String testId) {
-        try {
-            Map<String, Object> details = testService.getFullTestDetails(testId);
+    @GetMapping("/{testId}")
+    public ApiResponse<Map<String, Object>> getTestRequestDetail(@PathVariable String testId, @RequestParam(required = false) String role) {
+        if ("teacher".equalsIgnoreCase(role)) {
+            Map<String, Object> details = addTestService.getFullTestDetails(testId);
             if (details == null) {
-                return ResponseEntity.notFound().build();
+                throw new ResourceNotFoundException("Không tìm thấy yêu cầu đề thi: " + testId);
             }
-            return ResponseEntity.ok(details);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
+            return ApiResponse.success(details, "Lấy chi tiết đề thi thành công");
         }
+
+        Map<String, Object> details = addTestService.getPendingTestDetails(testId);
+        return ApiResponse.success(details, "Lấy chi tiết yêu cầu đề thi thành công");
     }
 
-    @PutMapping("/teacher/test/{testId}")
-    public ResponseEntity<String> updateTest(@PathVariable String testId, @RequestBody AddTestRequest request) {
-        try {
-            testService.updateFullTest(testId, request);
-            return ResponseEntity.ok("Test updated successfully!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Failed to update test: " + e.getMessage());
-        }
+    @PutMapping("/{testId}")
+    public ApiResponse<String> updateTest(@PathVariable String testId, @RequestBody AddTestRequest request) {
+        addTestService.updateFullTest(testId, request);
+        return ApiResponse.success("Cập nhật yêu cầu đề thi thành công!");
     }
 
-    @GetMapping("/manager/request-tests")
-    public ResponseEntity<List<AddTest>> getAllRequestTests() {
-        try {
-            List<AddTest> tests = addTestRepo.findAll();
-            return ResponseEntity.ok(tests);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
-        }
+    @DeleteMapping("/{testId}")
+    public ApiResponse<String> deleteRequestTest(@PathVariable String testId) {
+        addTestService.deleteRequestTest(testId);
+        return ApiResponse.success("Xóa yêu cầu đề thi thành công!");
     }
 
-    @GetMapping("/manager/request-test/{testId}")
-    public ResponseEntity<Map<String, Object>> getRequestTestDetail(@PathVariable String testId) {
-        try {
-            AddTest addTest = addTestRepo.findById(testId).orElse(null);
-            if (addTest == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            AddListening addListening = addListeningRepo.findByTestId(testId);
-            AddReading addReading = addReadingRepo.findByTestId(testId);
-            AddWriting addWriting = addWritingRepo.findByTestId(testId);
-            AddSpeaking addSpeaking = addSpeakingRepo.findByTestId(testId);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("test", addTest);
-            response.put("listening", addListening);
-            response.put("reading", addReading);
-            response.put("writing", addWriting);
-            response.put("speaking", addSpeaking);
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
-        }
-    }
-
-    @DeleteMapping("/manager/request-test/{testId}")
-    public ResponseEntity<String> deleteRequestTest(@PathVariable String testId) {
-        try {
-            AddTest addTest = addTestRepo.findById(testId).orElse(null);
-            if (addTest == null) {
-                return ResponseEntity.badRequest().body("Test not found");
-            }
-
-            addTestRepo.deleteById(testId);
-
-            AddListening addListening = addListeningRepo.findByTestId(testId);
-            if (addListening != null) addListeningRepo.delete(addListening);
-
-            AddReading addReading = addReadingRepo.findByTestId(testId);
-            if (addReading != null) addReadingRepo.delete(addReading);
-
-            AddWriting addWriting = addWritingRepo.findByTestId(testId);
-            if (addWriting != null) addWritingRepo.delete(addWriting);
-
-            AddSpeaking addSpeaking = addSpeakingRepo.findByTestId(testId);
-            if (addSpeaking != null) addSpeakingRepo.delete(addSpeaking);
-
-            return ResponseEntity.ok("Test deleted successfully!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Failed to delete test");
-        }
-    }
-
-    @PostMapping("/manager/accept-test/{testId}")
-    public ResponseEntity<String> acceptTest(@PathVariable("testId") String testId) {
-        try {
-            AddTest addTest = addTestRepo.findById(testId).orElse(null);
-            AddListening addListening = addListeningRepo.findByTestId(testId);
-            AddReading addReading = addReadingRepo.findByTestId(testId);
-            AddWriting addWriting = addWritingRepo.findByTestId(testId);
-            AddSpeaking addSpeaking = addSpeakingRepo.findByTestId(testId);
-
-            if (addTest == null) return ResponseEntity.badRequest().body("Test not found");
-
-            String newTestId = testService.generateNextTestId();
-
-            Listening listening = addTestService.convertAddListeningToListening(addListening, newTestId);
-            if (listening != null) listeningRepo.save(listening);
-
-            Reading reading = addTestService.convertAddReadingToReading(addReading, newTestId);
-            if (reading != null) readingRepo.save(reading);
-
-            Writing writing = addTestService.convertAddWritingToWriting(addWriting, newTestId);
-            if (writing != null) writingRepo.save(writing);
-
-            Speaking speaking = addTestService.convertAddSpeakingToSpeaking(addSpeaking, newTestId);
-            if (speaking != null) speakingRepo.save(speaking);
-
-            Test test = new Test();
-            test.setTestId(newTestId);
-            test.setTestTitle(addTest.getTestTitle());
-            test.setTags(addTest.getTags());
-            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd");
-            test.setCreatedAt(isoFormat.format(addTest.getCreateAt()));
-            testRepo.save(test);
-
-            addTestRepo.deleteById(testId);
-            if (addListening != null) addListeningRepo.delete(addListening);
-            if (addReading != null) addReadingRepo.delete(addReading);
-            if (addWriting != null) addWritingRepo.delete(addWriting);
-            if (addSpeaking != null) addSpeakingRepo.delete(addSpeaking);
-
-            return ResponseEntity.ok("Accepted and moved to main database!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Failed to accept test");
-        }
+    @PostMapping("/{testId}/acceptances")
+    public ApiResponse<String> acceptTest(@PathVariable("testId") String testId) {
+        addTestService.acceptTest(testId);
+        return ApiResponse.success("Duyệt đề thi và đưa vào ngân hàng đề thành công!");
     }
 }

@@ -1,26 +1,27 @@
 package web.ielts.FileUpload;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.BadRequestException;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/upload")
+@RequestMapping("/files")
 public class FileUploadController {
 
     @Autowired
     private FileUploadService fileUploadService;
 
     @PostMapping("/audio")
-    public ResponseEntity<Map<String, String>> uploadAudio(
+    public ApiResponse<Map<String, String>> uploadAudio(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "subfolder", required = false, defaultValue = "listening") String subfolder,
             @RequestParam(value = "role", required = false) String role,
@@ -28,8 +29,8 @@ public class FileUploadController {
         return handleUpload(file, "audio", subfolder, role, username);
     }
 
-    @PostMapping("/image")
-    public ResponseEntity<Map<String, String>> uploadImage(
+    @PostMapping("/images")
+    public ApiResponse<Map<String, String>> uploadImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "subfolder", required = false, defaultValue = "listening") String subfolder,
             @RequestParam(value = "role", required = false) String role,
@@ -37,13 +38,22 @@ public class FileUploadController {
         return handleUpload(file, "image", subfolder, role, username);
     }
 
-    private ResponseEntity<Map<String, String>> handleUpload(
+    // Alias hỗ trợ cả /image
+    @PostMapping("/image")
+    public ApiResponse<Map<String, String>> uploadImageAlias(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "subfolder", required = false, defaultValue = "listening") String subfolder,
+            @RequestParam(value = "role", required = false) String role,
+            @RequestParam(value = "username", required = false) String username) {
+        return handleUpload(file, "image", subfolder, role, username);
+    }
+
+    private ApiResponse<Map<String, String>> handleUpload(
             MultipartFile file,
             String folder,
             String subfolder,
             String role,
             String username) {
-        Map<String, String> response = new HashMap<>();
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
@@ -59,12 +69,11 @@ public class FileUploadController {
             }
 
             String url = fileUploadService.uploadFile(file, folder, subfolder, role, username);
+            Map<String, String> response = new HashMap<>();
             response.put("url", url);
-            response.put("message", "Upload successful");
-            return ResponseEntity.ok(response);
+            return ApiResponse.success(response, "Upload file thành công");
         } catch (IOException e) {
-            response.put("error", "Upload failed: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(response);
+            throw new BadRequestException("Upload file thất bại: " + e.getMessage());
         }
     }
 }

@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const data = await authService.getMe();
             console.log(data)
             if (data) {
-                setUser({ username: data.username, role: data.role ,isPremium : data.isPremium});
+                setUser({ username: data.username, role: data.role as User['role'], isPremium: data.isPremium });
             } else {
                 setUser(null);
             }

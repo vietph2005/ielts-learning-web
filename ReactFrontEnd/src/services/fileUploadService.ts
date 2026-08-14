@@ -1,7 +1,4 @@
-import { API_URL } from "@/config/api";
-import { customFetch } from "@/components/sections/customFetch";
-
-
+import apiClient from "@/lib/apiClient";
 
 export const uploadFile = async (
     file: File,
@@ -19,25 +16,21 @@ export const uploadFile = async (
         if (role) params.append('role', role);
         if (username) params.append('username', username);
 
-        const endpoint = type === 'audio' ? `${API_URL}/api/upload/audio` : `${API_URL}/api/upload/image`;
-        const response = await customFetch(`${endpoint}?${params.toString()}`, {
-            method: 'POST',
-            body: formData,
+        const endpoint = type === 'audio' ? `/files/audio?${params.toString()}` : `/files/images?${params.toString()}`;
+        const responseData = await apiClient.post<{ url: string }>(endpoint, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+        const url = (responseData as any)?.url;
+        if (!url) {
+            throw new Error('Không nhận được URL sau khi tải lên file');
         }
 
-        const data = await response.json();
-        if (!data.url) {
-            throw new Error('No URL returned from server upload endpoint');
-        }
-
-        return data.url;
+        return url;
     } catch (error) {
-        console.error("Supabase backend upload error:", error);
-        throw error instanceof Error ? error : new Error(`Failed to upload ${type} file to Supabase Storage`);
+        console.error("File upload error:", error);
+        throw error instanceof Error ? error : new Error(`Tải lên file ${type} thất bại`);
     }
 };

@@ -2,6 +2,8 @@ package web.ielts.Test.addtest.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import web.ielts.Common.exception.ResourceNotFoundException;
 import web.ielts.Test.dotest.model.Listening;
 import web.ielts.Test.dotest.model.Reading;
 import web.ielts.Test.dotest.model.Speaking;
@@ -14,6 +16,7 @@ import web.ielts.Test.dotest.model.Listening.TaskListening;
 import web.ielts.Test.dotest.model.Listening.Section;
 import web.ielts.Test.dotest.model.Listening.Question;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +56,7 @@ public class AddTestService {
     @Autowired
     private SpeakingRepository speakingRepo;
 
+    @Transactional
     public void saveFullTest(AddTestRequest request) {
         testRepository.save(request.getTest());
 
@@ -83,6 +87,10 @@ public class AddTestService {
         }
     }
 
+    public List<AddTest> getAllPendingTests() {
+        return testRepository.findAll();
+    }
+
     public List<Map<String, Object>> getAllTestsForTeacher() {
         List<Map<String, Object>> result = new ArrayList<>();
 
@@ -109,6 +117,24 @@ public class AddTestService {
         }
 
         return result;
+    }
+
+    public Map<String, Object> getPendingTestDetails(String testId) {
+        AddTest addTest = testRepository.findById(testId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu đề thi: " + testId));
+
+        AddListening addListening = listeningRepository.findByTestId(testId);
+        AddReading addReading = readingRepository.findByTestId(testId);
+        AddWriting addWriting = writingRepository.findByTestId(testId);
+        AddSpeaking addSpeaking = speakingRepository.findByTestId(testId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("test", addTest);
+        response.put("listening", addListening);
+        response.put("reading", addReading);
+        response.put("writing", addWriting);
+        response.put("speaking", addSpeaking);
+        return response;
     }
 
     public Map<String, Object> getFullTestDetails(String testId) {
@@ -145,6 +171,7 @@ public class AddTestService {
         return null;
     }
 
+    @Transactional
     public void updateFullTest(String testId, AddTestRequest request) {
         AddTest existingAddTest = testRepository.findById(testId).orElse(null);
         if (existingAddTest != null) {
@@ -218,6 +245,65 @@ public class AddTestService {
         }
     }
 
+    @Transactional
+    public void deleteRequestTest(String testId) {
+        if (!testRepository.existsById(testId)) {
+            throw new ResourceNotFoundException("Không tìm thấy yêu cầu đề thi để xóa: " + testId);
+        }
+
+        testRepository.deleteById(testId);
+
+        AddListening addListening = listeningRepository.findByTestId(testId);
+        if (addListening != null) listeningRepository.delete(addListening);
+
+        AddReading addReading = readingRepository.findByTestId(testId);
+        if (addReading != null) readingRepository.delete(addReading);
+
+        AddWriting addWriting = writingRepository.findByTestId(testId);
+        if (addWriting != null) writingRepository.delete(addWriting);
+
+        AddSpeaking addSpeaking = speakingRepository.findByTestId(testId);
+        if (addSpeaking != null) speakingRepository.delete(addSpeaking);
+    }
+
+    @Transactional
+    public void acceptTest(String testId) {
+        AddTest addTest = testRepository.findById(testId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu đề thi: " + testId));
+        AddListening addListening = listeningRepository.findByTestId(testId);
+        AddReading addReading = readingRepository.findByTestId(testId);
+        AddWriting addWriting = writingRepository.findByTestId(testId);
+        AddSpeaking addSpeaking = speakingRepository.findByTestId(testId);
+
+        String newTestId = generateNextTestId();
+
+        Listening listening = convertAddListeningToListening(addListening, newTestId);
+        if (listening != null) listeningRepo.save(listening);
+
+        Reading reading = convertAddReadingToReading(addReading, newTestId);
+        if (reading != null) readingRepo.save(reading);
+
+        Writing writing = convertAddWritingToWriting(addWriting, newTestId);
+        if (writing != null) writingRepo.save(writing);
+
+        Speaking speaking = convertAddSpeakingToSpeaking(addSpeaking, newTestId);
+        if (speaking != null) speakingRepo.save(speaking);
+
+        Test test = new Test();
+        test.setTestId(newTestId);
+        test.setTestTitle(addTest.getTestTitle());
+        test.setTags(addTest.getTags());
+        SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd");
+        test.setCreatedAt(isoFormat.format(addTest.getCreateAt()));
+        testRepo.save(test);
+
+        testRepository.deleteById(testId);
+        if (addListening != null) listeningRepository.delete(addListening);
+        if (addReading != null) readingRepository.delete(addReading);
+        if (addWriting != null) writingRepository.delete(addWriting);
+        if (addSpeaking != null) speakingRepository.delete(addSpeaking);
+    }
+
     public String generateNextTestId() {
         long count = testRepo.count() + 1;
         return String.format("T%03d", count);
@@ -249,7 +335,7 @@ public class AddTestService {
                                         section.setImageUrl(addSection.getImageUrl());
                                         section.setIntroduction(addSection.getIntroduction());
                                         if (addSection.getQuestions() != null) {
-                                            section.setQuestions(
+                                             section.setQuestions(
                                                     addSection.getQuestions().stream().map(addQ -> {
                                                         Question q = new Question();
                                                         q.setQuestion(addQ.getQuestion());

@@ -1,7 +1,10 @@
 package web.ielts.Test.dotest.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import web.ielts.Test.addtest.repository.AddTestRepository;
 import web.ielts.Test.dotest.repository.*;
 import web.ielts.Test.dotest.dto.ListTest;
 import web.ielts.Test.dotest.model.Test;
@@ -23,6 +26,9 @@ public class TestService {
     private TestRepository testRepository;
 
     @Autowired
+    private AddTestRepository addTestRepository;
+
+    @Autowired
     private ListeningRepository listeningRepository;
 
     @Autowired
@@ -33,6 +39,14 @@ public class TestService {
 
     @Autowired
     private SpeakingRepository speakingRepository;
+
+    public Page<Test> getTests(int page, int size) {
+        return testRepository.findAll(PageRequest.of(page, size));
+    }
+
+    public long countTests() {
+        return addTestRepository.count();
+    }
 
     public Map<Integer, List<ListTest>> getTestsGroupedByYear() {
         return testRepository.findAll().stream()

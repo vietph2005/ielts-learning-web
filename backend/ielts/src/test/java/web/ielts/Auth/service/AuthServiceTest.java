@@ -5,10 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,6 +14,11 @@ import web.ielts.Auth.dto.RegisterDTO;
 import web.ielts.Auth.model.VerificationToken;
 import web.ielts.Auth.repository.AuthRepository;
 import web.ielts.Auth.repository.VerificationTokenRepository;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.BadRequestException;
+import web.ielts.Common.exception.ConflictException;
+import web.ielts.Common.exception.ForbiddenException;
+import web.ielts.Common.exception.UnauthorizedException;
 import web.ielts.Config.EmailConfig;
 import web.ielts.Config.EmailForgetPasswordConfig;
 import web.ielts.User.User;
@@ -49,7 +52,6 @@ public class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Cấu hình jwt.secret phòng trường hợp Reflection injection cần thiết
         ReflectionTestUtils.setField(authService, "jwtSecret", "J4gKu2KJ3Z5vP8t5NmE+lw6aD3vJ6GpN1kILUBo=");
     }
 
@@ -63,10 +65,10 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(newRegister.getEmail())).thenReturn(null);
 
-        ResponseEntity<?> response = authService.register(newRegister);
+        ApiResponse<String> response = authService.register(newRegister);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.", response.getBody());
+        assertTrue(response.isSuccess());
+        assertEquals("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.", response.getMessage());
 
         verify(tokenRepository, times(1)).save(any(VerificationToken.class));
         verify(emailConfig, times(1)).sendVerificationEmail(eq(newRegister.getEmail()), anyString());
@@ -84,10 +86,7 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(existingRegister.getEmail())).thenReturn(existingUser);
 
-        ResponseEntity<?> response = authService.register(existingRegister);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Email đã được đăng ký", response.getBody());
+        assertThrows(ConflictException.class, () -> authService.register(existingRegister));
 
         verify(tokenRepository, never()).save(any());
         verify(emailConfig, never()).sendVerificationEmail(anyString(), anyString());
@@ -108,10 +107,11 @@ public class AuthServiceTest {
 
         when(tokenRepository.findByToken(token)).thenReturn(verificationToken);
 
-        ResponseEntity<?> response = authService.verifyEmail(token);
+        ResponseEntity<ApiResponse<String>> response = authService.verifyEmail(token);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody().toString().contains("Xác thực email thành công!"));
+        assertTrue(response.getBody().isSuccess());
+        assertTrue(response.getBody().getMessage().contains("Xác thực email thành công!"));
 
         verify(authRepository, times(1)).save(argThat(user -> 
             user.getEmail().equals("user@example.com") &&
@@ -125,10 +125,7 @@ public class AuthServiceTest {
         String token = "invalid-token";
         when(tokenRepository.findByToken(token)).thenReturn(null);
 
-        ResponseEntity<?> response = authService.verifyEmail(token);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Token không hợp lệ", response.getBody());
+        assertThrows(BadRequestException.class, () -> authService.verifyEmail(token));
         verify(authRepository, never()).save(any());
     }
 
@@ -139,16 +136,13 @@ public class AuthServiceTest {
                 token,
                 "user@example.com",
                 "Password123",
-                LocalDateTime.now().minusHours(1), // Hết hạn 1 tiếng trước
+                LocalDateTime.now().minusHours(1),
                 "student"
         );
 
         when(tokenRepository.findByToken(token)).thenReturn(verificationToken);
 
-        ResponseEntity<?> response = authService.verifyEmail(token);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Token đã hết hạn", response.getBody());
+        assertThrows(BadRequestException.class, () -> authService.verifyEmail(token));
         verify(authRepository, never()).save(any());
     }
 
@@ -164,16 +158,14 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        ResponseEntity<Map<String, Object>> response = authService.login(email, password, "student");
+        ResponseEntity<ApiResponse<Map<String, Object>>> response = authService.login(email, password, "student");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        Map<String, Object> body = response.getBody();
+        Map<String, Object> body = response.getBody().getData();
         assertNotNull(body);
         assertEquals("success", body.get("status"));
-        assertEquals("Login successful", body.get("message"));
         assertEquals("/", body.get("redirectUrl"));
 
-        // Verify Set-Cookie header exists and is set
         List<String> cookieHeaders = response.getHeaders().get("Set-Cookie");
         assertNotNull(cookieHeaders);
         assertFalse(cookieHeaders.isEmpty());
@@ -190,10 +182,10 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        ResponseEntity<Map<String, Object>> response = authService.login(email, password, "teacher");
+        ResponseEntity<ApiResponse<Map<String, Object>>> response = authService.login(email, password, "teacher");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("/staff-page", response.getBody().get("redirectUrl"));
+        assertEquals("/staff-page", response.getBody().getData().get("redirectUrl"));
     }
 
     @Test
@@ -206,10 +198,10 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        ResponseEntity<Map<String, Object>> response = authService.login(email, password, "admin");
+        ResponseEntity<ApiResponse<Map<String, Object>>> response = authService.login(email, password, "admin");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("/admin-page", response.getBody().get("redirectUrl"));
+        assertEquals("/admin-page", response.getBody().getData().get("redirectUrl"));
     }
 
     @Test
@@ -218,17 +210,11 @@ public class AuthServiceTest {
         String password = "Password123";
         String hashedPassword = encoder.encode(password);
 
-        // User chỉ có role student
         User user = new User(email, hashedPassword, List.of("student"));
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        // Đăng nhập với role teacher
-        ResponseEntity<Map<String, Object>> response = authService.login(email, password, "teacher");
-
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertEquals("fail", response.getBody().get("status"));
-        assertEquals("You do not have the required role to log in", response.getBody().get("message"));
+        assertThrows(ForbiddenException.class, () -> authService.login(email, password, "teacher"));
     }
 
     @Test
@@ -241,12 +227,7 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        // Nhập sai mật khẩu
-        ResponseEntity<Map<String, Object>> response = authService.login(email, "WrongPassword", "student");
-
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        assertEquals("fail", response.getBody().get("status"));
-        assertEquals("Invalid email or password", response.getBody().get("message"));
+        assertThrows(UnauthorizedException.class, () -> authService.login(email, "WrongPassword", "student"));
     }
 
     @Test
@@ -254,11 +235,7 @@ public class AuthServiceTest {
         String email = "notfound@example.com";
         when(authRepository.findByEmail(email)).thenReturn(null);
 
-        ResponseEntity<Map<String, Object>> response = authService.login(email, "Password123", "student");
-
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        assertEquals("fail", response.getBody().get("status"));
-        assertEquals("Invalid email or password", response.getBody().get("message"));
+        assertThrows(UnauthorizedException.class, () -> authService.login(email, "Password123", "student"));
     }
 
     // --- TEST FORGOT / RESET PASSWORD ---
@@ -272,10 +249,9 @@ public class AuthServiceTest {
 
         when(authRepository.findByEmail(email)).thenReturn(user);
 
-        ResponseEntity<?> response = authService.forgotpassword(email);
+        ApiResponse<String> response = authService.forgotPassword(email);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Gửi email thành công, vui lòng kiểm tra email.", response.getBody());
+        assertTrue(response.isSuccess());
         verify(tokenRepository, times(1)).save(any(VerificationToken.class));
         verify(emailForgetPasswordConfig, times(1)).sendResetPasswordEmail(eq(email), anyString());
     }
@@ -299,11 +275,10 @@ public class AuthServiceTest {
         when(tokenRepository.findByToken(token)).thenReturn(verificationToken);
         when(authRepository.findByEmail("user@example.com")).thenReturn(user);
 
-        ResponseEntity<?> response = authService.resetPassword(token, newPassword);
+        ApiResponse<String> response = authService.resetPassword(token, newPassword);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        Map<String, String> body = (Map<String, String>) response.getBody();
-        assertEquals("Đặt lại mật khẩu thành công", body.get("message"));
+        assertTrue(response.isSuccess());
+        assertEquals("Đặt lại mật khẩu thành công", response.getMessage());
 
         verify(authRepository, times(1)).save(argThat(u -> 
             u.getEmail().equals("user@example.com") &&
@@ -316,10 +291,7 @@ public class AuthServiceTest {
         String token = "invalid-token";
         when(tokenRepository.findByToken(token)).thenReturn(null);
 
-        ResponseEntity<?> response = authService.resetPassword(token, "NewPassword123");
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Token không hợp lệ", response.getBody());
+        assertThrows(BadRequestException.class, () -> authService.resetPassword(token, "NewPassword123"));
         verify(authRepository, never()).save(any());
     }
 
@@ -336,10 +308,7 @@ public class AuthServiceTest {
 
         when(tokenRepository.findByToken(token)).thenReturn(verificationToken);
 
-        ResponseEntity<?> response = authService.resetPassword(token, "NewPassword123");
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Token đã hết hạn", response.getBody());
+        assertThrows(BadRequestException.class, () -> authService.resetPassword(token, "NewPassword123"));
         verify(authRepository, never()).save(any());
     }
 }

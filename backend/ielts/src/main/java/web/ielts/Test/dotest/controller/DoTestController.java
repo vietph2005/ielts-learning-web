@@ -4,11 +4,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import web.ielts.Common.dto.ApiResponse;
+import web.ielts.Common.exception.BadRequestException;
+import web.ielts.Common.exception.ResourceNotFoundException;
 import web.ielts.Test.dotest.model.*;
 import web.ielts.Test.result.model.TestAnswer;
 import web.ielts.Test.result.model.listening.ListeningAnswer;
@@ -25,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/verify")
+@RequestMapping("/tests")
 public class DoTestController {
 
     @Autowired
@@ -46,137 +47,46 @@ public class DoTestController {
     @Autowired
     private TestAnswerService testAnswerService;
 
-    @GetMapping("/writing/{testId}")
-    public ResponseEntity<Writing> getWritingByTestId(@PathVariable String testId) {
-        return writingTestService.getWritingByTestId(testId)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/listening/{testId}")
-    public ResponseEntity<Listening> getListeningByTestId(@PathVariable String testId) {
-        Listening listening = listeningTestService.getListeningByTestId(testId);
-        return listening != null ? ResponseEntity.ok(listening) : ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/reading/{testId}")
-    public ResponseEntity<Reading> getReadingByTestId(@PathVariable String testId) {
-        Reading reading = readingTestService.getReadingByTestId(testId);
-        return reading != null ? ResponseEntity.ok(reading) : ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("speaking/{testId}")
-    public ResponseEntity<Speaking> getSpeakingByTestId(@PathVariable String testId) {
-        Speaking speaking = speakingTestService.getSpeakingByTestId(testId);
-        if (speaking != null) {
-            return ResponseEntity.ok(speaking);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @GetMapping("/fullTest/{testId}")
-    public ResponseEntity<Test> getFullTestByTestId(@PathVariable String testId, @AuthenticationPrincipal User user) {
+    @GetMapping("/{testId}")
+    public ApiResponse<Test> getFullTestByTestId(@PathVariable String testId) {
         Test test = doTestService.getTestByTestId(testId);
-        return test != null ? ResponseEntity.ok(test) : ResponseEntity.notFound().build();
+        if (test == null) {
+            throw new ResourceNotFoundException("Không tìm thấy bài test: " + testId);
+        }
+        return ApiResponse.success(test, "Lấy thông tin bài test thành công");
     }
 
-    @PostMapping("/test-answer/create")
-    public ResponseEntity<TestAnswer> createTestAnswer(@RequestParam String testId, @RequestParam String username) {
-        TestAnswer testAnswer = testAnswerService.createTestAnswer(testId, username);
-        return ResponseEntity.ok(testAnswer);
+    @GetMapping("/{testId}/writing")
+    public ApiResponse<Writing> getWritingByTestId(@PathVariable String testId) {
+        Writing writing = writingTestService.getWritingByTestId(testId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đề Writing của testId: " + testId));
+        return ApiResponse.success(writing, "Lấy đề Writing thành công");
     }
 
-    @PostMapping("/reading/submit")
-    public ResponseEntity<ReadingAnswer> saveReadingAnswer(@RequestBody ReadingAnswer answer, @RequestParam(required = false) String testAnswerId) {
-        ReadingAnswer saved = readingTestService.saveReadingAnswer(answer);
-        if (testAnswerId != null && !testAnswerId.isEmpty()) {
-            testAnswerService.updateReadingAnswer(testAnswerId, saved.getId());
+    @GetMapping("/{testId}/listening")
+    public ApiResponse<Listening> getListeningByTestId(@PathVariable String testId) {
+        Listening listening = listeningTestService.getListeningByTestId(testId);
+        if (listening == null) {
+            throw new ResourceNotFoundException("Không tìm thấy đề Listening của testId: " + testId);
         }
-        return ResponseEntity.ok(saved);
+        return ApiResponse.success(listening, "Lấy đề Listening thành công");
     }
 
-    @PostMapping("/writing/submit")
-    public ResponseEntity<WritingAnswer> saveWritingAnswer(@RequestBody WritingAnswer answer, @RequestParam(required = false) String testAnswerId) {
-        answer.setSubmittedAt(java.time.LocalDateTime.now());
-        WritingAnswer saved = writingTestService.saveWritingAnswer(answer);
-        if (testAnswerId != null && !testAnswerId.isEmpty()) {
-            testAnswerService.updateWritingAnswer(testAnswerId, saved.getId());
+    @GetMapping("/{testId}/reading")
+    public ApiResponse<Reading> getReadingByTestId(@PathVariable String testId) {
+        Reading reading = readingTestService.getReadingByTestId(testId);
+        if (reading == null) {
+            throw new ResourceNotFoundException("Không tìm thấy đề Reading của testId: " + testId);
         }
-        return ResponseEntity.ok(saved);
+        return ApiResponse.success(reading, "Lấy đề Reading thành công");
     }
 
-    @PostMapping("/listening/submit")
-    public ResponseEntity<ListeningAnswer> saveListeningAnswer(@RequestBody ListeningAnswer answer, @RequestParam(required = false) String testAnswerId) {
-        ListeningAnswer saved = listeningTestService.saveListeningAnswer(answer);
-        if (testAnswerId != null && !testAnswerId.isEmpty()) {
-            testAnswerService.updateListeningAnswer(testAnswerId, saved.getId());
+    @GetMapping("/{testId}/speaking")
+    public ApiResponse<Speaking> getSpeakingByTestId(@PathVariable String testId) {
+        Speaking speaking = speakingTestService.getSpeakingByTestId(testId);
+        if (speaking == null) {
+            throw new ResourceNotFoundException("Không tìm thấy đề Speaking của testId: " + testId);
         }
-        return ResponseEntity.ok(saved);
-    }
-
-    @PostMapping("/speaking/submit")
-    public ResponseEntity<Map<String, Object>> uploadFiles(
-            @RequestPart("metadata") MultipartFile metadataJson,
-            @RequestPart(value = "files", required = false) MultipartFile[] files,
-            @RequestParam(required = false) String testAnswerId,
-            @AuthenticationPrincipal User user
-    ) {
-        String studentUsername = (user != null && user.getUsername() != null) ? user.getUsername() : "anonymous";
-        String userRole = (user != null && user.getRole() != null && !user.getRole().isEmpty()) ? user.getRole().get(0) : "STUDENT";
-        System.out.println("User: " + studentUsername + ", Role: " + userRole);
-
-        String testId;
-        SpeakingAnswer submission;
-        SpeakingAnswer saved;
-
-        try {
-            String jsonString = new String(metadataJson.getBytes(), StandardCharsets.UTF_8);
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            JsonNode root = mapper.readTree(jsonString);
-
-            testId = root.get("testId").asText();
-            submission = mapper.readValue(jsonString, SpeakingAnswer.class);
-            submission.setUsername(studentUsername);
-            System.out.println(submission.toString());
-            saved = speakingTestService.saveSubmission(submission);
-            System.out.println(saved);
-
-        } catch (IOException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Lỗi khi đọc hoặc lưu metadata JSON: " + e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
-
-        Map<String, String> fileUrlMap = new HashMap<>();
-
-        if (files != null && files.length > 0) {
-            for (MultipartFile file : files) {
-                try {
-                    String url = speakingTestService.uploadFile(file, "speaking", userRole, studentUsername);
-                    fileUrlMap.put(file.getOriginalFilename(), url);
-                    System.out.println("Uploaded: " + url);
-                } catch (IOException e) {
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("error", "Upload failed: " + e.getMessage());
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-                }
-            }
-        } else {
-            System.out.println("No files uploaded, only saving metadata.");
-        }
-
-        speakingTestService.updateAnswerUrls(saved, fileUrlMap);
-        speakingTestService.saveSubmission(saved);
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("id", saved.getId());
-        response.put("message", "✅ Upload và cập nhật thành công!");
-
-        if (testAnswerId != null && !testAnswerId.isEmpty()) {
-            testAnswerService.updateSpeakingAnswer(testAnswerId, saved.getId());
-        }
-        return ResponseEntity.ok(response);
+        return ApiResponse.success(speaking, "Lấy đề Speaking thành công");
     }
 }
