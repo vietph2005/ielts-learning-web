@@ -34,8 +34,8 @@ import web.ielts.Tips.repository.ReadingTipRepository;
 import web.ielts.Tips.repository.SpeakingTipRepository;
 import web.ielts.Tips.repository.WritingTipRepository;
 
-import web.ielts.Test.model.*;
-import web.ielts.Test.repository.*;
+import web.ielts.Test.dotest.model.*;
+import web.ielts.Test.dotest.repository.*;
 
 import java.time.Instant;
 import java.time.LocalDate;

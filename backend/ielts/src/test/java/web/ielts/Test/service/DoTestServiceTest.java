@@ -5,7 +5,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import web.ielts.Test.model.answer.writing.TaskWritingAnswer;
 import web.ielts.Test.model.answer.writing.WritingAnswer;
 import web.ielts.Test.repository.ReadingRepository;
@@ -29,33 +28,34 @@ class DoTestServiceTest {
     private WritingAnswerRepository writingAnswerRepository;
 
     @InjectMocks
-    private DoTestService doTestService;
+    private WritingTestService writingTestService;
+
+    @InjectMocks
+    private ReadingTestService readingTestService;
 
     @Test
     void testCalculateIeltsBand() {
-        // Gọi method private thông qua Reflection
-        assertEquals(9.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 39, 40));
-        assertEquals(8.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 36, 40));
-        assertEquals(7.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 34, 40));
-        assertEquals(7.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 30, 40));
-        assertEquals(6.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 27, 40));
-        assertEquals(6.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 23, 40));
-        assertEquals(5.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 19, 40));
-        assertEquals(5.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 15, 40));
-        assertEquals(4.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 13, 40));
-        assertEquals(4.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 10, 40));
-        assertEquals(1.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsBand", 0, 40));
+        assertEquals(9.0, IeltsScoringUtils.calculateIeltsBand(39, 40));
+        assertEquals(8.0, IeltsScoringUtils.calculateIeltsBand(36, 40));
+        assertEquals(7.5, IeltsScoringUtils.calculateIeltsBand(34, 40));
+        assertEquals(7.0, IeltsScoringUtils.calculateIeltsBand(30, 40));
+        assertEquals(6.5, IeltsScoringUtils.calculateIeltsBand(27, 40));
+        assertEquals(6.0, IeltsScoringUtils.calculateIeltsBand(23, 40));
+        assertEquals(5.5, IeltsScoringUtils.calculateIeltsBand(19, 40));
+        assertEquals(5.0, IeltsScoringUtils.calculateIeltsBand(15, 40));
+        assertEquals(4.5, IeltsScoringUtils.calculateIeltsBand(13, 40));
+        assertEquals(4.0, IeltsScoringUtils.calculateIeltsBand(10, 40));
+        assertEquals(1.0, IeltsScoringUtils.calculateIeltsBand(0, 40));
     }
 
     @Test
     void testCalculateIeltsRounding() {
-        // Gọi method private thông qua Reflection
-        assertEquals(6.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.25));
-        assertEquals(7.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.75));
-        assertEquals(6.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.125));
-        assertEquals(6.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.375));
-        assertEquals(6.5, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.625));
-        assertEquals(7.0, ReflectionTestUtils.invokeMethod(doTestService, "calculateIeltsRounding", 6.875));
+        assertEquals(6.5, IeltsScoringUtils.calculateIeltsRounding(6.25));
+        assertEquals(7.0, IeltsScoringUtils.calculateIeltsRounding(6.75));
+        assertEquals(6.0, IeltsScoringUtils.calculateIeltsRounding(6.125));
+        assertEquals(6.5, IeltsScoringUtils.calculateIeltsRounding(6.375));
+        assertEquals(6.5, IeltsScoringUtils.calculateIeltsRounding(6.625));
+        assertEquals(7.0, IeltsScoringUtils.calculateIeltsRounding(6.875));
     }
 
     @Test
@@ -74,7 +74,7 @@ class DoTestServiceTest {
         // Mock repository save
         when(writingAnswerRepository.save(any(WritingAnswer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        WritingAnswer result = doTestService.saveWritingAnswer(answer);
+        WritingAnswer result = writingTestService.saveWritingAnswer(answer);
 
         // (6.0 + 7.0*2) / 3 = 6.666...
         // 6.666... làm tròn theo quy tắc IELTS -> 6.5

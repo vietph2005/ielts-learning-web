@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import web.ielts.History.dto.HistoryTest;
 import web.ielts.History.service.HistoryService;
-import web.ielts.Test.model.Test;
-import web.ielts.Test.service.DoTestService;
+import web.ielts.Test.dotest.model.Test;
+import web.ielts.Test.dotest.service.DoTestService;
 
 import java.util.ArrayList;
 import java.util.List;

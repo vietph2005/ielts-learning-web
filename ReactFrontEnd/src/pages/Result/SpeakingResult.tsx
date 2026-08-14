@@ -35,13 +35,24 @@ interface PronunciationEvaluation {
     stress?: string
 }
 
-interface GrammarAnswer {
-    score?: number
+interface ErrorDetail {
     errorText: string
     correctText: string
-    sentenceText: string
+    sentenceText?: string
+    sentenceContext?: string
     errorType: string
     explanation: string
+}
+
+interface GrammarAnswer {
+    score?: number
+    errorText?: string
+    correctText?: string
+    sentenceText?: string
+    sentenceContext?: string
+    errorType?: string
+    explanation?: string
+    errors?: ErrorDetail[]
 }
 
 interface FleCohAnswer {
@@ -61,7 +72,7 @@ interface PronunciationAnswer {
     overEmphasis: { index: number }[];
     missingEmphasis: { index: number }[];
     correctEmphasizedWords: { index: number }[];
-    comment?: string; // Added comment field
+    comment?: string;
 }
 
 interface SpeakingAnswerQuestion {
@@ -142,7 +153,7 @@ const renderWordByWordHighlight = (
         {words.map((word, idx) => {
           const color = colorMap[idx];
           // Nếu là dấu cách thì render bình thường
-          if (/^\\s+$/.test(word)) return <span key={idx}>{word}</span>;
+          if (/^\s+$/.test(word)) return <span key={idx}>{word}</span>;
           return (
             <span
               key={idx}
@@ -173,7 +184,7 @@ export default function SpeakingResult() {
     // State for current question index in part1/part3
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
 
-    const { resultId } = useParams  <{ resultId: string }>();
+    const { resultId } = useParams<{ resultId: string }>();
 
     useEffect(() => {
         fetch(`${API_URL}/api/result/speaking/${resultId}`)
@@ -186,28 +197,15 @@ export default function SpeakingResult() {
             .finally(() => setLoading(false));
     }, [resultId]);
 
-
-    // const calculateOverallScore = () => {
-    //     if (!data) return 0
-    //     const scores = [data.part1?.averageScore ?? 0, data.part2?.score ?? 0, data.part3?.averageScore ?? 0]
-    //     const validScores = scores.filter((s) => typeof s === "number" && !isNaN(s))
-    //     if (validScores.length === 0) return 0
-    //     const avg = validScores.reduce((a, b) => a + b, 0) / validScores.length
-    //     return Math.round(avg * 10) / 10
-    // }
-
     const playAudio = (audioUrl: string) => {
-        // Nếu đang phát audio này, thì pause
         if (currentAudio && !currentAudio.paused) {
             currentAudio.pause();
             setIsPlaying(false);
             return;
         }
-        // Nếu đang phát audio khác, dừng lại
         if (currentAudio) {
             currentAudio.pause();
         }
-        // Giải mã nếu là mã hóa base64url
         let url = audioUrl;
         if (!/^https?:\/\//.test(audioUrl)) {
             try {
@@ -226,7 +224,7 @@ export default function SpeakingResult() {
         audio.play().catch(() => setIsPlaying(false))
     }
 
-    // Hiển thị chi tiết Pronunciation (đầy đủ trường mới)
+    // Hiển thị chi tiết Pronunciation
     const renderPronunciationDetail = (pronunciationAnswer?: PronunciationAnswer) => {
         if (!pronunciationAnswer) return <div className="text-red-500">No pronunciation data.</div>;
         const { stressTranscript, stressMismatchesDetailed} = pronunciationAnswer;
@@ -304,18 +302,51 @@ export default function SpeakingResult() {
         );
     }
 
-    // Thêm hàm mới để highlight lỗi trong transcript cho SpeakingResult (like WritingResult)
+    // Highlight lỗi trong transcript cho SpeakingResult (hỗ trợ danh sách tất cả các lỗi)
     const renderTranscriptWithCorrections = (transcript: string | undefined | null, grammarAnswer: GrammarAnswer, lexicalAnswer: GrammarAnswer) => {
-        // Bảo vệ nếu transcript null/undefined
         if (!transcript || typeof transcript !== "string") {
             return (
                 <div className="p-6 text-red-500">No transcript available.</div>
             );
         }
-        // Gom các lỗi lại (grammar và lexical)
-        const errors: Array<GrammarAnswer & { type: string }> = [];
-        if (grammarAnswer?.errorText) errors.push({ ...grammarAnswer, type: "Grammar" });
-        if (lexicalAnswer?.errorText) errors.push({ ...lexicalAnswer, type: "Lexical" });
+
+        // Gom tất cả các lỗi lại (grammar và lexical) từ mảng errors hoặc errorText đơn lẻ
+        const errors: Array<ErrorDetail & { type: string }> = [];
+
+        if (grammarAnswer?.errors && Array.isArray(grammarAnswer.errors) && grammarAnswer.errors.length > 0) {
+            grammarAnswer.errors.forEach(err => {
+                if (err && err.errorText && err.errorText.trim() !== "") {
+                    errors.push({ ...err, type: "Grammar" });
+                }
+            });
+        } else if (grammarAnswer?.errorText && grammarAnswer.errorText.trim() !== "") {
+            errors.push({
+                errorText: grammarAnswer.errorText,
+                correctText: grammarAnswer.correctText || "",
+                errorType: grammarAnswer.errorType || "Grammar",
+                explanation: grammarAnswer.explanation || "",
+                sentenceContext: grammarAnswer.sentenceContext || grammarAnswer.sentenceText || "",
+                type: "Grammar"
+            });
+        }
+
+        if (lexicalAnswer?.errors && Array.isArray(lexicalAnswer.errors) && lexicalAnswer.errors.length > 0) {
+            lexicalAnswer.errors.forEach(err => {
+                if (err && err.errorText && err.errorText.trim() !== "") {
+                    errors.push({ ...err, type: "Lexical" });
+                }
+            });
+        } else if (lexicalAnswer?.errorText && lexicalAnswer.errorText.trim() !== "") {
+            errors.push({
+                errorText: lexicalAnswer.errorText,
+                correctText: lexicalAnswer.correctText || "",
+                errorType: lexicalAnswer.errorType || "Lexical",
+                explanation: lexicalAnswer.explanation || "",
+                sentenceContext: lexicalAnswer.sentenceContext || lexicalAnswer.sentenceText || "",
+                type: "Lexical"
+            });
+        }
+
         if (errors.length === 0) {
             return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -332,24 +363,26 @@ export default function SpeakingResult() {
                 </div>
             )
         }
+
         // Tách transcript thành các câu
         const sentences = transcript.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [transcript];
-        // Gom lỗi theo từng câu (ưu tiên sentenceText, fallback errorText xuất hiện trong câu)
+
+        // Gom lỗi theo từng câu
         let highlightedSentences: React.ReactNode[] = sentences.map((sentence, sIdx) => {
-            // Lấy các lỗi thuộc về câu này (ưu tiên sentenceText, nếu không có thì errorText xuất hiện trong câu)
             const matchedErrors = errors
                 .map((error, idx) => ({ error, idx }))
                 .filter(({ error }) => {
                     if (error.sentenceText && error.sentenceText.trim() === sentence.trim()) return true;
+                    if (error.sentenceContext && error.sentenceContext.trim() === sentence.trim()) return true;
                     return sentence.includes(error.errorText);
-
                 });
+
             if (matchedErrors.length === 0) return sentence;
-            // Tìm tất cả vị trí xuất hiện của từng errorText trong câu, highlight lần lượt
+
             let parts: React.ReactNode[] = [];
             let lastIdx = 0;
-            // Tạo mảng các lỗi với vị trí xuất hiện (có thể trùng lặp)
             let errorSpans: { start: number, end: number, error: typeof errors[0], idx: number }[] = [];
+
             matchedErrors.forEach(({ error, idx }) => {
                 let searchStart = 0;
                 while (searchStart < sentence.length) {
@@ -359,9 +392,9 @@ export default function SpeakingResult() {
                     searchStart = foundIdx + error.errorText.length;
                 }
             });
-            // Sắp xếp theo vị trí xuất hiện
+
             errorSpans.sort((a, b) => a.start - b.start);
-            // Loại bỏ highlight lồng nhau
+
             let filteredSpans: typeof errorSpans = [];
             let lastEnd = 0;
             errorSpans.forEach(span => {
@@ -370,7 +403,7 @@ export default function SpeakingResult() {
                     lastEnd = span.end;
                 }
             });
-            // Tạo các phần tử highlight
+
             lastIdx = 0;
             filteredSpans.forEach((span, i) => {
                 if (span.start > lastIdx) {
@@ -396,6 +429,7 @@ export default function SpeakingResult() {
             }
             return <span key={`sentence-${sIdx}`}>{parts}</span>;
         });
+
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Text with highlights */}
@@ -413,7 +447,6 @@ export default function SpeakingResult() {
                             <div className="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
                                 {index + 1}
                             </div>
-                            {/* Dấu hỏi ở góc trên phải */}
                             <div className="absolute top-1 right-1">
                                 <button
                                     className="text-blue-500 hover:text-blue-700 focus:outline-none"
@@ -453,7 +486,6 @@ export default function SpeakingResult() {
 
     const renderPartContent = (part: SpeakingAnswerPart13 | SpeakingAnswerPart2, isPart2 = false) => {
         if (isPart2) {
-            // part2: render 1 question
             const currentQuestion: SpeakingAnswerPart2 = part as SpeakingAnswerPart2;
             return (
                 <div className="space-y-6">
@@ -496,14 +528,14 @@ export default function SpeakingResult() {
                             </div>
                         )}
                     </div>
-                    {/* Your Response - full width */}
+                    {/* Your Response */}
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col justify-center">
                         <h4 className="text-base font-semibold text-gray-800 mb-1">Your Response</h4>
                         <p className="text-gray-700 leading-relaxed text-base italic">
                             "{currentQuestion.transcript}"
                         </p>
                     </div>
-                    {/* Analysis Tabs - giống part1/part3 */}
+                    {/* Analysis Tabs */}
                     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                         <Tabs defaultValue="grammar" className="w-full">
                             <TabsList className="grid w-full grid-cols-4 bg-gray-50 rounded-none border-b">
@@ -547,7 +579,7 @@ export default function SpeakingResult() {
                                 {renderTranscriptWithCorrections(
                                     currentQuestion.transcript,
                                     currentQuestion.grammarAnswer,
-                                    { ...currentQuestion.lexicalAnswer, errorText: "" },
+                                    { ...currentQuestion.lexicalAnswer, errorText: "", errors: [] },
                                 )}
                             </TabsContent>
                             <TabsContent value="lexical" className="p-4 space-y-3">
@@ -560,7 +592,7 @@ export default function SpeakingResult() {
                                 </div>
                                 {renderTranscriptWithCorrections(
                                     currentQuestion.transcript,
-                                    { ...currentQuestion.grammarAnswer, errorText: "" },
+                                    { ...currentQuestion.grammarAnswer, errorText: "", errors: [] },
                                     currentQuestion.lexicalAnswer,
                                 )}
                             </TabsContent>
@@ -594,21 +626,17 @@ export default function SpeakingResult() {
                 </div>
             )
         } else {
-            // part1 or part3: chỉ hiển thị 1 câu hỏi, có thanh chọn câu hỏi
-            // Lọc chỉ lấy các câu có audioAnswer
             const allQuestions = (part as SpeakingAnswerPart13).questions ?? [];
             const questions = allQuestions.filter(q => q.audioAnswer && q.audioAnswer.trim() !== "");
-            // Nếu không còn câu nào có audio, trả về thông báo
             if (questions.length === 0) {
                 return <div className="p-6 text-red-500">No answered questions with audio available.</div>;
             }
-            // Đảm bảo currentQuestionIdx không vượt quá số lượng câu hỏi
             const safeIdx = Math.min(currentQuestionIdx, questions.length - 1);
             const question = questions[safeIdx];
             if (safeIdx !== currentQuestionIdx) setCurrentQuestionIdx(safeIdx);
             return (
                 <div className="space-y-6">
-                    {/* Thanh chọn câu hỏi */}
+                    {/* Question selector */}
                     <div className="flex flex-wrap gap-2 justify-center mb-2">
                         {questions.map((_, idx) => (
                             <button
@@ -640,7 +668,6 @@ export default function SpeakingResult() {
                         <div className="bg-green-50 border-l-4 border-l-green-500 rounded-r-xl p-4 mb-2">
                             <p className="text-gray-800 leading-relaxed font-medium text-base">{question.question}</p>
                         </div>
-                        {/* Your Response ngay dưới câu hỏi */}
                         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-4">
                             <h4 className="text-base font-semibold text-gray-800 mb-1">Your Response</h4>
                             <p className="text-gray-700 leading-relaxed text-base italic">
@@ -648,9 +675,8 @@ export default function SpeakingResult() {
                             </p>
                         </div>
                     </div>
-                    {/* Analysis Tabs giữ nguyên */}
+                    {/* Analysis Tabs */}
                     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                        {/* ... giữ nguyên phần Tabs ... */}
                         <Tabs defaultValue="grammar" className="w-full">
                             <TabsList className="grid w-full grid-cols-4 bg-gray-50 rounded-none border-b">
                                 <TabsTrigger
@@ -693,7 +719,7 @@ export default function SpeakingResult() {
                                 {renderTranscriptWithCorrections(
                                     question.transcript,
                                     question.grammarAnswer,
-                                    { ...question.lexicalAnswer, errorText: "" },
+                                    { ...question.lexicalAnswer, errorText: "", errors: [] },
                                 )}
                             </TabsContent>
                             <TabsContent value="lexical" className="p-4 space-y-3">
@@ -706,7 +732,7 @@ export default function SpeakingResult() {
                                 </div>
                                 {renderTranscriptWithCorrections(
                                     question.transcript,
-                                    { ...question.grammarAnswer, errorText: "" },
+                                    { ...question.grammarAnswer, errorText: "", errors: [] },
                                     question.lexicalAnswer,
                                 )}
                             </TabsContent>
@@ -782,7 +808,7 @@ export default function SpeakingResult() {
                 >
                     ← Back to Full Test
                 </Button>
-                {/* Header Section - Matching the design */}
+                {/* Header Section */}
                 <div className="bg-green-600 rounded-2xl p-6 mb-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
                     <div>
                         <p className="text-green-100 text-xs font-medium mb-1 uppercase tracking-wide">FINAL SCORE</p>
@@ -802,7 +828,7 @@ export default function SpeakingResult() {
                     </div>
                 </div>
 
-                {/* Part Navigation - Matching the design */}
+                {/* Part Navigation */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
                     <button
                         onClick={() => setActivePart("part1")}
