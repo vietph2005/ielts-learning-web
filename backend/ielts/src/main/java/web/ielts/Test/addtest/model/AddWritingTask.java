@@ -4,6 +4,7 @@ public class AddWritingTask {
     private int taskNumber;
     private String imageUrl;
     private String question;
+    private String chartData;
 
     public AddWritingTask() {}
 
@@ -29,5 +30,13 @@ public class AddWritingTask {
 
     public void setQuestion(String question) {
         this.question = question;
+    }
+
+    public String getChartData() {
+        return chartData;
+    }
+
+    public void setChartData(String chartData) {
+        this.chartData = chartData;
     }
 }

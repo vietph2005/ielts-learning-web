@@ -190,17 +190,114 @@ public class AIService {
     }
 
     // =========================================================================
-    // 2. WRITING AI EVALUATION
-    //    Task 1: Groq (text-only, không cần vision) + retry
-    //    Task 2: Qwen LoRA → fallback Groq + retry
+    // 2. WRITING AI EVALUATION & 1-TIME VISION EXTRACTION
     // =========================================================================
 
     /**
-     * Writing Task 1: Dùng Groq (text-only).
-     * Câu hỏi đã mô tả đầy đủ biểu đồ, AI chấm dựa trên text.
+     * 1-Time Vision Extraction: Trích xuất bảng số liệu & xu hướng từ ảnh biểu đồ Task 1 khi tạo đề.
+     * Thử Groq Vision trước (llama-3.2-11b-vision-preview), fallback OpenAI Vision (gpt-4o-mini).
+     */
+    public String extractChartDataFromImage(String imageUrl, String question) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return null;
+        }
+
+        String prompt = IeltsWritingRubrics.buildChartDataExtractionPrompt(question);
+
+        // 1. Thử Groq Vision
+        if (groqApiKey != null && !groqApiKey.isBlank()) {
+            try {
+                System.out.println("👁️ Extracting chart data with Groq Vision (qwen/qwen3.6-27b)...");
+                String result = callVisionApi(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        groqApiKey,
+                        "qwen/qwen3.6-27b",
+                        prompt,
+                        imageUrl
+                );
+                if (result != null && !result.isBlank()) {
+                    System.out.println("✅ Groq Vision chart extraction successful.");
+                    return result;
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Groq Vision failed: " + e.getMessage() + ". Trying OpenAI Vision fallback...");
+            }
+        }
+
+        // 2. Fallback OpenAI Vision (gpt-4o-mini)
+        if (openaiApiKey != null && !openaiApiKey.isBlank() && !openaiApiKey.equals("your_openai_api_key_here")) {
+            try {
+                System.out.println("👁️ Extracting chart data with OpenAI Vision (gpt-4o-mini)...");
+                String result = callVisionApi(
+                        "https://api.openai.com/v1/chat/completions",
+                        openaiApiKey,
+                        "gpt-4o-mini",
+                        prompt,
+                        imageUrl
+                );
+                if (result != null && !result.isBlank()) {
+                    System.out.println("✅ OpenAI Vision chart extraction successful.");
+                    return result;
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ OpenAI Vision extraction failed: " + e.getMessage());
+            }
+        }
+
+        System.err.println("⚠️ Could not extract chart data from image. Will proceed without pre-extracted data.");
+        return null;
+    }
+
+    private String callVisionApi(String endpoint, String apiKey, String model, String textPrompt, String imageUrl) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+
+        Map<String, Object> textContent = Map.of(
+                "type", "text",
+                "text", textPrompt
+        );
+        Map<String, Object> imageContent = Map.of(
+                "type", "image_url",
+                "image_url", Map.of("url", imageUrl)
+        );
+
+        Map<String, Object> userMessage = Map.of(
+                "role", "user",
+                "content", List.of(textContent, imageContent)
+        );
+
+        Map<String, Object> requestBody = Map.of(
+                "model", model,
+                "messages", List.of(userMessage),
+                "temperature", 0.1,
+                "max_tokens", 1000
+        );
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(endpoint, entity, String.class);
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            try {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("choices").path(0).path("message").path("content").asText();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to parse Vision response: " + e.getMessage(), e);
+            }
+        } else {
+            throw new RuntimeException("Vision API returned HTTP " + response.getStatusCode());
+        }
+    }
+
+    /**
+     * Writing Task 1: Dùng Groq (text-only) với Ground Truth chartData đã được trích xuất 1 lần trước đó.
      */
     public WritingAIResponse WritingTask1(String imageUrl, String question, String answer) {
-        String prompt = IeltsWritingRubrics.buildTask1Prompt(question, answer);
+        return WritingTask1(imageUrl, question, answer, null);
+    }
+
+    public WritingAIResponse WritingTask1(String imageUrl, String question, String answer, String chartData) {
+        String prompt = IeltsWritingRubrics.buildTask1Prompt(question, answer, chartData);
         String response = callGroqWritingWithRetry(prompt, "Task1");
         return parseResponse(response, answer);
     }
@@ -371,7 +468,7 @@ public class AIService {
         headers.setBearerAuth(groqApiKey);
 
         Map<String, Object> requestBody = Map.of(
-                "model", "llama-3.3-70b-versatile",
+                "model", "openai/gpt-oss-120b",
                 "messages", List.of(
                         Map.of("role", "system", "content", systemMessage),
                         Map.of("role", "user", "content", prompt)

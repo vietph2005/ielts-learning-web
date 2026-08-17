@@ -67,13 +67,32 @@ public class WritingTestService {
         boolean task1Success = false;
         boolean task2Success = false;
 
+        // ---- Lấy chartData từ đề thi gốc (nếu có) ----
+        String chartData = null;
+        if (answer.getTestId() != null) {
+            try {
+                Optional<Writing> writingOpt = writingRepository.findById(answer.getTestId());
+                if (writingOpt.isPresent() && writingOpt.get().getTasks() != null) {
+                    for (Writing.Task t : writingOpt.get().getTasks()) {
+                        if (t.getTaskNumber() == 1 && t.getChartData() != null && !t.getChartData().isBlank()) {
+                            chartData = t.getChartData();
+                            System.out.println("📊 Found pre-extracted chartData for testId: " + answer.getTestId());
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Could not fetch chartData from test: " + e.getMessage());
+            }
+        }
+
         // ---- Chấm Task 1 ----
         var task1 = answer.getTask1();
         if (task1 != null) {
             try {
                 System.out.println("🎯 Grading Task 1 for answerId: " + answerId);
                 WritingAIResponse eval1 = aiService.WritingTask1(
-                        task1.getImageUrl(), task1.getQuestion(), task1.getAnswer());
+                        task1.getImageUrl(), task1.getQuestion(), task1.getAnswer(), chartData);
 
                 task1.setFeedback(eval1.getFeedback());
                 if (task1.getFeedback() != null && eval1.getFeedback() != null) {

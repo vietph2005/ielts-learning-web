@@ -14,6 +14,7 @@ import web.ielts.Test.addtest.model.*;
 import web.ielts.Test.addtest.repository.*;
 import web.ielts.Test.dotest.model.Listening.TaskListening;
 import web.ielts.Test.dotest.model.Listening.Section;
+import web.ielts.Test.ai.service.AIService;
 import web.ielts.Test.dotest.model.Listening.Question;
 
 import java.text.SimpleDateFormat;
@@ -56,6 +57,9 @@ public class AddTestService {
     @Autowired
     private SpeakingRepository speakingRepo;
 
+    @Autowired
+    private AIService aiService;
+
     @Transactional
     public void saveFullTest(AddTestRequest request) {
         testRepository.save(request.getTest());
@@ -77,6 +81,7 @@ public class AddTestService {
         AddWriting writing = request.getWriting();
         if (writing != null) {
             writing.setTestId(testId);
+            extractChartDataIfMissing(writing);
             writingRepository.save(writing);
         }
 
@@ -202,6 +207,7 @@ public class AddTestService {
                 writing.setTestId(testId);
                 AddWriting existingW = writingRepository.findByTestId(testId);
                 if (existingW != null) writing.setId(existingW.getId());
+                extractChartDataIfMissing(writing);
                 writingRepository.save(writing);
             }
 
@@ -416,17 +422,45 @@ public class AddTestService {
         writing.setTestId(targetTestId);
         if (addWriting.getTasks() != null) {
             writing.setTasks(
-                    addWriting.getTasks().stream().map(AddWritingTask -> {
+                    addWriting.getTasks().stream().map(addWritingTask -> {
                         Writing.Task task = new Writing.Task();
-                        task.setTaskNumber(AddWritingTask.getTaskNumber());
-                        task.setQuestion(AddWritingTask.getQuestion());
-                        task.setImageUrl(AddWritingTask.getImageUrl());
+                        task.setTaskNumber(addWritingTask.getTaskNumber());
+                        task.setQuestion(addWritingTask.getQuestion());
+                        task.setImageUrl(addWritingTask.getImageUrl());
+
+                        String chartData = addWritingTask.getChartData();
+                        if ((chartData == null || chartData.isBlank()) && addWritingTask.getTaskNumber() == 1
+                                && addWritingTask.getImageUrl() != null && !addWritingTask.getImageUrl().isBlank()) {
+                            try {
+                                chartData = aiService.extractChartDataFromImage(addWritingTask.getImageUrl(), addWritingTask.getQuestion());
+                                addWritingTask.setChartData(chartData);
+                            } catch (Exception e) {
+                                System.err.println("⚠️ Vision extraction failed during test conversion: " + e.getMessage());
+                            }
+                        }
+                        task.setChartData(chartData);
                         return task;
                     }).collect(Collectors.toList())
             );
         }
 
         return writing;
+    }
+
+    private void extractChartDataIfMissing(AddWriting writing) {
+        if (writing != null && writing.getTasks() != null) {
+            for (AddWritingTask task : writing.getTasks()) {
+                if (task.getTaskNumber() == 1 && (task.getChartData() == null || task.getChartData().isBlank())
+                        && task.getImageUrl() != null && !task.getImageUrl().isBlank()) {
+                    try {
+                        String data = aiService.extractChartDataFromImage(task.getImageUrl(), task.getQuestion());
+                        task.setChartData(data);
+                    } catch (Exception e) {
+                        System.err.println("⚠️ 1-time Vision chart extraction failed: " + e.getMessage());
+                    }
+                }
+            }
+        }
     }
 
     public Speaking convertAddSpeakingToSpeaking(AddSpeaking addSpeaking) {

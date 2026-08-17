@@ -32,6 +32,7 @@ public class Writing {
         private String imageUrl;
         private String type;
         private String question;
+        private String chartData;
 
         public int getTaskNumber() { return taskNumber; }
         public void setTaskNumber(int taskNumber) { this.taskNumber = taskNumber; }
@@ -41,5 +42,7 @@ public class Writing {
         public void setType(String type) { this.type = type; }
         public String getQuestion() { return question; }
         public void setQuestion(String question) { this.question = question; }
+        public String getChartData() { return chartData; }
+        public void setChartData(String chartData) { this.chartData = chartData; }
     }
 }
