@@ -1,9 +1,8 @@
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 import { useState, useEffect, useRef } from "react";
 import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import {customFetch} from "@/components/sections/customFetch";
 import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 
 export interface Question {
@@ -14,7 +13,7 @@ export interface Question {
 }
 
 export interface Section {
-    imageUrl?: string; // sửa lại từ String -> string
+    imageUrl?: string;
     sectionNumber: number;
     type: string;
     introduction: string;
@@ -35,7 +34,6 @@ export interface ReadingTest {
     tasks: Task[];
     username: string;
     skill: string;
-
 }
 
 interface QuestionWithStudentAnswer extends Question {
@@ -78,22 +76,20 @@ export default function ReadingTest() {
         localStorage.setItem("darkMode", isDarkMode ? "true" : "false");
     }, [isDarkMode]);
 
-    
-
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await customFetch(`${API_URL}/verify/reading/${testId}`);
-                const data: ReadingTest = await res.json();
+                const data: any = await apiClient.get(`/tests/${testId}/reading`);
+                if (!data) return;
 
                 let questionId = 1;
                 const updatedData = {
                     ...data,
-                    tasks: data.tasks.map((task) => ({
+                    tasks: (data.tasks || []).map((task: Task) => ({
                         ...task,
-                        sections: task.sections.map((section) => ({
+                        sections: (task.sections || []).map((section: Section) => ({
                             ...section,
-                            questions: section.questions.map((question) => ({
+                            questions: (section.questions || []).map((question: Question) => ({
                                 ...question,
                                 questionId: questionId++,
                                 studentAnswer: null,
@@ -103,9 +99,7 @@ export default function ReadingTest() {
                 };
 
                 setReadingTest(updatedData);
-
                 setTasks(updatedData.tasks);
-
             } catch (err) {
                 console.error("Failed to load reading test:", err);
             }
@@ -131,6 +125,7 @@ export default function ReadingTest() {
 
         setReadingTest(updatedData);
     }, [answers]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             const popup = document.getElementById("color-picker-popup");
@@ -139,7 +134,6 @@ export default function ReadingTest() {
                 const isClickInPopup = popup && popup.contains(event.target as Node);
 
                 if (!isClickInPopup) {
-                    // Nếu click ở đâu cũng được — kể cả trong paragraph — đều đóng popup
                     setShowColorPicker(false);
                     setSelectedRange(null);
                     setSelectedText("");
@@ -156,6 +150,7 @@ export default function ReadingTest() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [showColorPicker]);
+
     const handleFullscreen = () => {
         if (!containerRef.current) return;
         if (!document.fullscreenElement) {
@@ -168,85 +163,42 @@ export default function ReadingTest() {
     const handleSubmit = async () => {
         if (!readingTest) return;
 
-        const dataToSend = structuredClone(readingTest); // clone gốc để không thay đổi state
-        if (user?.username) dataToSend.username = user.username;
-        dataToSend.skill = "reading";
-        dataToSend.submittedAt = new Date().toISOString();
-        dataToSend.tasks.forEach((task) => {
-            delete (task as any).title;
-
-            task.sections.forEach((section) => {
-                delete (section as any).introduction;
-                delete (section as any).imageUrl;
-
-                section.questions.forEach((q) => {
-                    const question = q as QuestionWithStudentAnswer;
-                    question.studentAnswer = question.studentAnswer || null;
-                    const qid = question.questionId!;
-                    question.studentAnswer = answers[qid] || null;
-
-                    delete (question as any).explanation;
-                    delete (question as any).options;
-                });
-            });
-        });
-
-
-        // ✅ In ra dữ liệu JSON để kiểm tra trước khi submit
-        console.log("✅ Data to be submitted:");
-        console.log(JSON.stringify(dataToSend, null, 2));
-
         setIsSubmitted(true);
 
         try {
             const dataToSendFinal = {
                 ...readingTest,
+                skill: "reading",
+                submittedAt: new Date().toISOString(),
+                username: user?.username || "anonymous",
                 tasks: readingTest.tasks.map((task) => ({
                     ...task,
                     sections: task.sections.map((section) => ({
                         ...section,
                         questions: section.questions.map((question) => ({
                             ...question,
-                            studentAnswer: (question as QuestionWithStudentAnswer).studentAnswer || null,
+                            studentAnswer: (question as QuestionWithStudentAnswer).studentAnswer || answers[(question as QuestionWithStudentAnswer).questionId!] || null,
                         })),
                     })),
                 })),
             };
-            let response;
-            if(testAnswerId != null) {
-                response = await fetch(`${API_URL}/verify/reading/submit?testAnswerId=${testAnswerId}`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify(dataToSendFinal),
-                });
-            }
-            else {
-                response = await fetch(`${API_URL}/verify/reading/submit`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify(dataToSendFinal),
-                });
-            }
-            if (!response.ok) throw new Error("Submit failed");
-            const result = await response.json();
-            console.log("Saved:", result);
+
+            const url = testAnswerId ? `/test-answers/reading?testAnswerId=${testAnswerId}` : `/test-answers/reading`;
+            const result: any = await apiClient.post(url, dataToSendFinal);
             alert("Submitted successfully!");
             if (mode === "fulltest") {
                 navigate(`/test/writing/${testId}?testAnswerId=${testAnswerId}&mode=fulltest`);
             } else {
-                navigate(`/reading-result/${result.id}`);
+                const resId = result?.id || result?._id;
+                navigate(`/reading-result/${resId}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error submitting");
+            alert("Error submitting: " + (error?.message || error));
         } finally {
             setIsSubmitted(false);
         }
     };
-
-
 
     const handleAnswerChange = (questionId: number, answer: string) => {
         setAnswers((prev) => ({ ...prev, [questionId]: answer }));
@@ -269,9 +221,7 @@ export default function ReadingTest() {
 
         if (text && selection && paragraphRef.current?.contains(selection.anchorNode)) {
             const range = selection.getRangeAt(0).cloneRange();
-
             normalizeRange(range);
-
             const rect = range.getBoundingClientRect();
 
             setSelectedText(range.toString().trim());
@@ -291,7 +241,6 @@ export default function ReadingTest() {
     };
 
     const normalizeRange = (range: Range) => {
-        // Normalize start
         if (range.startContainer.nodeType === 3) {
             const text = range.startContainer.textContent || "";
             while (range.startOffset > 0 && !/\s/.test(text[range.startOffset - 1])) {
@@ -299,7 +248,6 @@ export default function ReadingTest() {
             }
         }
 
-        // Normalize end
         if (range.endContainer.nodeType === 3) {
             const text = range.endContainer.textContent || "";
             while (range.endOffset < text.length && !/\s/.test(text[range.endOffset])) {
@@ -316,8 +264,6 @@ export default function ReadingTest() {
 
         try {
             const range = selectedRange.cloneRange();
-
-            // Lấy tất cả text node trong vùng chọn
             const walker = document.createTreeWalker(
                 range.commonAncestorContainer,
                 NodeFilter.SHOW_TEXT,
@@ -341,7 +287,7 @@ export default function ReadingTest() {
                 span.style.borderRadius = "3px";
                 span.style.padding = "1px 2px";
 
-                const newNode = textNode.splitText(0); // full clone
+                const newNode = textNode.splitText(0);
                 span.textContent = newNode.textContent!;
                 textNode.parentNode.replaceChild(span, newNode);
             });
@@ -349,14 +295,11 @@ export default function ReadingTest() {
             console.error("Highlight error:", error);
         }
 
-        // Reset state
         setSelectedRange(null);
         setSelectedText("");
         setShowColorPicker(false);
         window.getSelection()?.removeAllRanges();
     };
-
-
 
     return (
         <div ref={containerRef} className={isDarkMode ? "dark" : ""}>
@@ -427,7 +370,6 @@ export default function ReadingTest() {
                                         />
                                     </div>
                                 )}
-
                             </>
                         )}
                     </div>
@@ -463,7 +405,6 @@ export default function ReadingTest() {
                                         const questionId = q.questionId!;
                                         const currentAnswer = answers[questionId] || "";
 
-                                        // Tính số thứ tự câu hỏi đúng tổng thể
                                         let questionNumber = questionId;
 
                                         return (
@@ -471,8 +412,7 @@ export default function ReadingTest() {
                                                 <p className="text-gray-800 font-medium mb-3 dark:text-gray-200">
                                                     {questionNumber}. {q.question}
                                                 </p>
-                                                {/* Đã loại bỏ hiển thị ảnh ở từng câu hỏi */}
-                                                {section.type === "True/False/Not Given" || section.type === "Yes/No/Not Given"  || section.type === "map-labeling" || section.type === "dropdown" || section.type === "matching-heading" ? (
+                                                {section.type === "True/False/Not Given" || section.type === "Yes/No/Not Given" || section.type === "map-labeling" || section.type === "dropdown" || section.type === "matching-heading" ? (
                                                     <select
                                                         value={currentAnswer}
                                                         onChange={(e) => handleAnswerChange(questionId, e.target.value)}
@@ -490,7 +430,7 @@ export default function ReadingTest() {
                                                     </select>
                                                 ) : q.options?.length ? (
                                                     <div className="space-y-2 mb-3">
-                                                        {q.options && q.options.map((option, optIdx) => {
+                                                        {q.options.map((option, optIdx) => {
                                                             const answerKey = option.split(".")[0].trim();
                                                             return (
                                                                 <div key={optIdx} className="flex items-center">

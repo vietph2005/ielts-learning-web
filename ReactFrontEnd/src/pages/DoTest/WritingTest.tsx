@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from "react";
+import {useState, useEffect, useRef, useCallback} from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,13 +11,11 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { customFetch } from "@/components/sections/customFetch";
-import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { validateWordLimit } from "@/lib/utils";
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 
 interface WritingTask {
     type: string;
@@ -30,13 +28,23 @@ interface WritingData {
     tasks: WritingTask[];
 }
 
+type GradingStatus = "idle" | "submitting" | "grading" | "graded" | "grading_failed" | "timeout";
+
+// Thời gian polling tối đa: 3 phút
+const MAX_POLL_DURATION_MS = 3 * 60 * 1000;
+const POLL_INTERVAL_MS = 3000;
+
 export default function WritingTest() {
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pollStartTimeRef = useRef<number>(0);
+
     const { user } = useAuth();
     const { testId } = useParams<{ testId: string }>();
     const [searchParams] = useSearchParams();
     const testAnswerId = searchParams.get("testAnswerId");
     const mode = searchParams.get("mode");
+
     const [currentTask, setCurrentTask] = useState(1);
     const [essayTask1, setEssayTask1] = useState("");
     const [essayTask2, setEssayTask2] = useState("");
@@ -44,24 +52,22 @@ export default function WritingTest() {
     const [wordCountTask2, setWordCountTask2] = useState(0);
     const [writingData, setWritingData] = useState<WritingData | null>(null);
     const [gradingMethod, setGradingMethod] = useState<"ai" | "human">("ai");
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showGradingDialog, setShowGradingDialog] = useState(false);
     const navigate = useNavigate();
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
     const [isHighlightMode, setIsHighlightMode] = useState(false);
     const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
     const toggleHighlightMode = () => setIsHighlightMode((prev) => !prev);
-    const [isGrading, setIsGrading] = useState(false); // Add loading overlay state
-    const [submittedResult, setSubmittedResult] = useState<any>(null);
-    const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+    // Trạng thái chấm điểm
+    const [gradingStatus, setGradingStatus] = useState<GradingStatus>("idle");
+    const [submittedAnswerId, setSubmittedAnswerId] = useState<string | null>(null);
+    const [pollAttempts, setPollAttempts] = useState(0);
+    const [gradingProgress, setGradingProgress] = useState(0); // 0-100 cho progress bar
 
     useEffect(() => {
-        fetch(`${API_URL}/verify/writing/${testId}`, {
-            credentials: "include",
-        })
-            .then((res) => res.json())
+        if (!testId) return;
+        apiClient.get<WritingData>(`/tests/${testId}/writing`)
             .then((data) => {
                 console.log("Fetched Writing Data:", data);
                 setWritingData(data);
@@ -79,6 +85,64 @@ export default function WritingTest() {
         setWordCountTask2(words.length);
     }, [essayTask2]);
 
+    // ---- Cleanup polling khi unmount ----
+    useEffect(() => {
+        return () => {
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        };
+    }, []);
+
+    // ---- Hàm polling kiểm tra trạng thái chấm điểm ----
+    const startPolling = useCallback((answerId: string, mode: string | null, testAnswerId: string | null) => {
+        pollStartTimeRef.current = Date.now();
+        setPollAttempts(0);
+        setGradingProgress(5); // Bắt đầu ở 5%
+
+        pollTimerRef.current = setInterval(async () => {
+            const elapsed = Date.now() - pollStartTimeRef.current;
+            const progress = Math.min(90, Math.floor((elapsed / MAX_POLL_DURATION_MS) * 90) + 5);
+            setGradingProgress(progress);
+            setPollAttempts(prev => prev + 1);
+
+            // Timeout sau MAX_POLL_DURATION_MS
+            if (elapsed >= MAX_POLL_DURATION_MS) {
+                clearInterval(pollTimerRef.current!);
+                setGradingStatus("timeout");
+                setGradingProgress(0);
+                return;
+            }
+
+            try {
+                const statusData: any = await apiClient.get(`/test-answers/writing/${answerId}/status`);
+                const status = statusData?.gradingStatus;
+
+                if (status === "graded") {
+                    clearInterval(pollTimerRef.current!);
+                    setGradingProgress(100);
+                    setGradingStatus("graded");
+
+                    // Điều hướng sau 500ms
+                    setTimeout(() => {
+                        if (mode === "fulltest") {
+                            navigate(`/test/speaking/${testId}?testAnswerId=${testAnswerId}&mode=fulltest`);
+                        } else {
+                            navigate(`/writing-result/${answerId}`);
+                        }
+                    }, 500);
+
+                } else if (status === "grading_failed") {
+                    clearInterval(pollTimerRef.current!);
+                    setGradingStatus("grading_failed");
+                    setGradingProgress(0);
+                }
+                // Nếu status = "grading" → tiếp tục poll
+            } catch (error) {
+                console.error("Poll error:", error);
+                // Không dừng polling vì lỗi mạng tạm thời
+            }
+        }, POLL_INTERVAL_MS);
+    }, [navigate, testId]);
+
     const handleSubmitClick = () => {
         setShowGradingDialog(true);
     };
@@ -87,6 +151,7 @@ export default function WritingTest() {
         if (!writingData || writingData.tasks.length < 2) return;
         const task1Data = writingData.tasks[0];
         const task2Data = writingData.tasks[1];
+
         const task1Submission = essayTask1.trim()
             ? {
                   type: task1Data.type,
@@ -96,6 +161,7 @@ export default function WritingTest() {
                   wordCount: wordCountTask1.toString(),
               }
             : null;
+
         const task2Submission = essayTask2.trim()
             ? {
                   type: task2Data.type,
@@ -104,22 +170,19 @@ export default function WritingTest() {
                   wordCount: wordCountTask2.toString(),
               }
             : null;
+
         if (!task1Submission && !task2Submission) {
             alert("You haven't written anything.");
             return;
         }
+
         const MAX_WORDS_TASK1 = 500;
         const MAX_WORDS_TASK2 = 500;
         const { valid: valid1, error: error1 } = validateWordLimit(essayTask1, MAX_WORDS_TASK1);
         const { valid: valid2, error: error2 } = validateWordLimit(essayTask2, MAX_WORDS_TASK2);
-        if (!valid1) {
-          alert(error1);
-          return;
-        }
-        if (!valid2) {
-          alert(error2);
-          return;
-        }
+        if (!valid1) { alert(error1); return; }
+        if (!valid2) { alert(error2); return; }
+
         const payload = {
             testId: writingData.testId,
             username: user?.username,
@@ -128,37 +191,31 @@ export default function WritingTest() {
             task2: task2Submission,
             gradingMethod,
         };
-        setIsSubmitting(true);
+
         setShowGradingDialog(false);
-        setIsGrading(true); // Bắt đầu overlay loading
+        setGradingStatus("submitting");
+
         try {
-            let response;
-            if (testAnswerId) {
-                response = await fetch(`${API_URL}/verify/writing/submit?testAnswerId=${testAnswerId}`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                });
-            } else {
-                response = await fetch(`${API_URL}/verify/writing/submit`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                });
-            }
-            if (!response.ok) throw new Error("Failed to submit writing");
-            const result = await response.json();
+            const url = testAnswerId
+                ? `/test-answers/writing?testAnswerId=${testAnswerId}`
+                : `/test-answers/writing`;
+            const result: any = await apiClient.post(url, payload);
+            const answerId = result?.id || result?._id;
+
             if (gradingMethod === "ai") {
-                setIsGrading(false);
-                if (mode === "fulltest") {
-                    navigate(`/test/speaking/${testId}?testAnswerId=${testAnswerId}&mode=fulltest`);
+                if (answerId) {
+                    setSubmittedAnswerId(answerId);
+                    setGradingStatus("grading");
+                    // Bắt đầu polling
+                    startPolling(answerId, mode, testAnswerId);
                 } else {
-                    navigate(`/writing-result/${result.id}`);
-                    alert("The test has been graded by AI! Your essay has been submitted successfully!");
+                    // Fallback nếu không có ID
+                    setGradingStatus("idle");
+                    alert("Submitted! Please check your history for results.");
                 }
             } else {
+                // Human grading
+                setGradingStatus("idle");
                 alert("Your essay has been sent to the teacher. You will receive the result within 3-5 days.");
                 if (mode === "fulltest") {
                     navigate(`/test/speaking/${testId}?testAnswerId=${testAnswerId}&mode=fulltest`);
@@ -168,10 +225,8 @@ export default function WritingTest() {
             }
         } catch (error) {
             console.error("Error submitting writing:", error);
-            setIsGrading(false);
+            setGradingStatus("idle");
             alert("Submit failed. Please try again.");
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
@@ -184,56 +239,188 @@ export default function WritingTest() {
         }
     };
 
+    const handleCancelPolling = () => {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setGradingStatus("idle");
+        alert("Grading is still in progress. You can check your results later in History.");
+        navigate("/");
+    };
+
+    const handleViewResultLater = () => {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        navigate("/");
+    };
+
     const MAX_WORDS_TASK1 = 500;
 
     const handleEssayTask1Change = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      const { valid, wordCount, error } = validateWordLimit(value, MAX_WORDS_TASK1);
-
-      if (!valid) {
-        // Có thể alert, hoặc setError để hiển thị ra UI
-        alert(error);
-        // Không cập nhật state nếu vượt quá giới hạn
-        return;
-      }
-      setEssayTask1(value);
+        const value = e.target.value;
+        const { valid, error } = validateWordLimit(value, MAX_WORDS_TASK1);
+        if (!valid) { alert(error); return; }
+        setEssayTask1(value);
     };
 
     const MAX_WORDS_TASK2 = 500;
 
     const handleEssayTask2Change = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      const { valid, wordCount, error } = validateWordLimit(value, MAX_WORDS_TASK2);
-
-      if (!valid) {
-        alert(error);
-        return;
-      }
-      setEssayTask2(value);
+        const value = e.target.value;
+        const { valid, error } = validateWordLimit(value, MAX_WORDS_TASK2);
+        if (!valid) { alert(error); return; }
+        setEssayTask2(value);
     };
+
+    // ---- Overlay hiển thị trạng thái ----
+    const isShowingOverlay = gradingStatus === "submitting" || gradingStatus === "grading" || gradingStatus === "graded";
 
     return (
         <div ref={containerRef} className="min-h-screen bg-gray-50">
-            {/* Overlay loading khi đang chấm điểm AI */}
-            {isGrading && (
+
+            {/* ===== Overlay Chấm Điểm AI ===== */}
+            {isShowingOverlay && (
                 <div
                     style={{
                         position: "fixed",
                         inset: 0,
                         zIndex: 9999,
-                        background: "rgba(0,0,0,0.4)",
+                        background: "rgba(0,0,0,0.55)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                     }}
                 >
-                    <div className="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 border-t-emerald-600 mb-6"></div>
-                        <div className="text-xl font-bold text-emerald-700 mb-2">Scoring...</div>
-                        <div className="text-gray-600">Waiting for AI to score your answer</div>
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center max-w-sm w-full mx-4">
+                        {/* Spinner */}
+                        <div className="relative mb-6">
+                            <div className="animate-spin rounded-full h-20 w-20 border-4 border-emerald-100 border-t-emerald-600"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-emerald-700 text-lg font-bold">
+                                    {gradingStatus === "graded" ? "✓" : "AI"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Tiêu đề */}
+                        <div className="text-xl font-bold text-gray-800 mb-1">
+                            {gradingStatus === "submitting" && "Submitting..."}
+                            {gradingStatus === "grading" && "AI Grading in Progress"}
+                            {gradingStatus === "graded" && "Grading Complete!"}
+                        </div>
+
+                        {/* Mô tả */}
+                        <div className="text-sm text-gray-500 text-center mb-5">
+                            {gradingStatus === "submitting" && "Uploading your essay..."}
+                            {gradingStatus === "grading" && (
+                                <>
+                                    AI is evaluating your writing based on official IELTS criteria.
+                                    <br />
+                                    <span className="text-xs text-gray-400 mt-1 block">
+                                        This may take 30–90 seconds.
+                                    </span>
+                                </>
+                            )}
+                            {gradingStatus === "graded" && "Redirecting to your results..."}
+                        </div>
+
+                        {/* Progress Bar */}
+                        {gradingStatus === "grading" && (
+                            <div className="w-full bg-gray-100 rounded-full h-2 mb-5 overflow-hidden">
+                                <div
+                                    className="bg-emerald-500 h-2 rounded-full transition-all duration-1000"
+                                    style={{ width: `${gradingProgress}%` }}
+                                />
+                            </div>
+                        )}
+
+                        {/* Poll attempts counter */}
+                        {gradingStatus === "grading" && pollAttempts > 0 && (
+                            <div className="text-xs text-gray-400 mb-4">
+                                Checking... ({pollAttempts * 3}s elapsed)
+                            </div>
+                        )}
+
+                        {/* Nút huỷ */}
+                        {gradingStatus === "grading" && (
+                            <button
+                                onClick={handleCancelPolling}
+                                className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
+                            >
+                                View result later (go to History)
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
+
+            {/* ===== Overlay Timeout ===== */}
+            {gradingStatus === "timeout" && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 9999,
+                        background: "rgba(0,0,0,0.55)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center max-w-sm w-full mx-4">
+                        <div className="text-4xl mb-4">⏳</div>
+                        <div className="text-xl font-bold text-amber-600 mb-2">AI is taking longer than usual</div>
+                        <div className="text-sm text-gray-500 text-center mb-6">
+                            The AI model may be busy. Your essay has been saved and will be graded shortly.
+                            You can view your result in <strong>History</strong> once complete.
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => submittedAnswerId && navigate(`/writing-result/${submittedAnswerId}`)}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                            >
+                                Check Result Now
+                            </button>
+                            <button
+                                onClick={handleViewResultLater}
+                                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                            >
+                                Go to Homepage
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== Overlay Grading Failed ===== */}
+            {gradingStatus === "grading_failed" && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 9999,
+                        background: "rgba(0,0,0,0.55)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center max-w-sm w-full mx-4">
+                        <div className="text-4xl mb-4">⚠️</div>
+                        <div className="text-xl font-bold text-red-600 mb-2">AI Grading Failed</div>
+                        <div className="text-sm text-gray-500 text-center mb-6">
+                            The AI service is temporarily overloaded. Your essay has been saved.
+                            Please try again later or contact your teacher for manual grading.
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleViewResultLater}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                            >
+                                Go to Homepage
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <DoTestHeader initialTime={60 * 60}
                           onSubmit={handleSubmitClick}
                           isDarkMode={isDarkMode}
@@ -242,6 +429,7 @@ export default function WritingTest() {
                           isHighlightMode={isHighlightMode}
                           toggleHighlightMode={toggleHighlightMode} />
 
+            {/* ===== Dialog Chọn Phương Thức Chấm ===== */}
             <Dialog open={showGradingDialog} onOpenChange={setShowGradingDialog}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -255,13 +443,23 @@ export default function WritingTest() {
                             defaultValue="ai"
                             onValueChange={(value) => setGradingMethod(value as "ai" | "human")}
                         >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="ai" id="ai" />
-                                <Label htmlFor="ai">Grade by AI (Fast)</Label>
+                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                                <RadioGroupItem value="ai" id="ai" className="mt-0.5" />
+                                <div>
+                                    <Label htmlFor="ai" className="font-semibold cursor-pointer">Grade by AI (Fast)</Label>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Results in 30–90 seconds. Uses IELTS official band descriptors.
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="human" id="human" />
-                                <Label htmlFor="human">Grade by teacher (More accurate)</Label>
+                            <div className="flex items-start space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                                <RadioGroupItem value="human" id="human" className="mt-0.5" />
+                                <div>
+                                    <Label htmlFor="human" className="font-semibold cursor-pointer">Grade by Teacher</Label>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        More accurate. Results within 3–5 days.
+                                    </p>
+                                </div>
                             </div>
                         </RadioGroup>
                     </div>
@@ -269,15 +467,16 @@ export default function WritingTest() {
                         <Button variant="outline" onClick={() => setShowGradingDialog(false)}>
                             Cancel
                         </Button>
-                        <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
-                            {isSubmitting ? "Submitting..." : "Confirm"}
+                        <Button type="submit" onClick={handleSubmit}>
+                            Confirm & Submit
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
+            {/* ===== Main Content ===== */}
             <div className="flex h-[calc(100vh-100px)]">
-                {/* Left Panel */}
+                {/* Left Panel - Đề bài */}
                 <div className="w-1/2 bg-white p-6 overflow-y-auto border-r border-gray-200">
                     {currentTask === 1 ? (
                         <div>
@@ -317,7 +516,7 @@ export default function WritingTest() {
                     )}
                 </div>
 
-                {/* Right Panel */}
+                {/* Right Panel - Bài làm */}
                 <div className="w-1/2 bg-gray-50 p-6 flex flex-col">
                     {currentTask === 1 ? (
                         <>
@@ -329,7 +528,12 @@ export default function WritingTest() {
                             />
                             <div className="mt-4 flex justify-between items-center">
                                 <div className="text-sm text-gray-600">
-                                    Words Count: <span className="font-medium">{wordCountTask1}</span>
+                                    Words Count: <span className={`font-medium ${wordCountTask1 < 150 ? "text-amber-500" : "text-emerald-600"}`}>
+                                        {wordCountTask1}
+                                    </span>
+                                    {wordCountTask1 < 150 && (
+                                        <span className="ml-2 text-xs text-amber-500">(minimum 150 words)</span>
+                                    )}
                                 </div>
                             </div>
                         </>
@@ -343,7 +547,12 @@ export default function WritingTest() {
                             />
                             <div className="mt-4 flex justify-between items-center">
                                 <div className="text-sm text-gray-600">
-                                    Words Count: <span className="font-medium">{wordCountTask2}</span>
+                                    Words Count: <span className={`font-medium ${wordCountTask2 < 250 ? "text-amber-500" : "text-emerald-600"}`}>
+                                        {wordCountTask2}
+                                    </span>
+                                    {wordCountTask2 < 250 && (
+                                        <span className="ml-2 text-xs text-amber-500">(minimum 250 words)</span>
+                                    )}
                                 </div>
                             </div>
                         </>
@@ -357,6 +566,9 @@ export default function WritingTest() {
                     <div className="max-w-8xl mx-auto grid grid-cols-2 gap-4">
                         {[1, 2].map((taskNumber) => {
                             const isActive = currentTask === taskNumber;
+                            const wordCount = taskNumber === 1 ? wordCountTask1 : wordCountTask2;
+                            const minWords = taskNumber === 1 ? 150 : 250;
+                            const hasEnough = wordCount >= minWords;
                             return (
                                 <div
                                     key={taskNumber}
@@ -368,6 +580,12 @@ export default function WritingTest() {
                                     }`}
                                 >
                                     <h3 className="font-semibold text-sm">Task {taskNumber}</h3>
+                                    <p className="text-xs mt-1">
+                                        <span className={hasEnough ? "text-emerald-600" : "text-amber-500"}>
+                                            {wordCount} words
+                                        </span>
+                                        {" "}<span className="text-gray-400">/ min {minWords}</span>
+                                    </p>
                                 </div>
                             );
                         })}

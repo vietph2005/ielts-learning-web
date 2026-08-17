@@ -28,14 +28,23 @@ public class AIService {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${openai.api.key:}")
-    private String openaiApiKey;
-
-    @Value("${openai.api.key:}")
-    private String apiKey;
-
     @Value("${groq.api.key:}")
     private String groqApiKey;
+
+    // Qwen 2.5 LoRA endpoint (ngrok hoặc HuggingFace Spaces)
+    @Value("${qwen.lora.api.url:}")
+    private String qwenLoraApiUrl;
+
+    // Retry config
+    @Value("${writing.grading.retry.max:3}")
+    private int maxRetries;
+
+    @Value("${writing.grading.retry.delay.ms:2000}")
+    private long retryDelayMs;
+
+    // Vẫn giữ để tương thích với các service khác (Speaking)
+    @Value("${openai.api.key:}")
+    private String openaiApiKey;
 
     public AIService(ObjectMapper objectMapper) {
         this.webClient = WebClient.builder()
@@ -66,21 +75,18 @@ public class AIService {
     }
 
     public String callSpeakingPart(String prompt) {
-        // 1. Primary: Groq (free, fast, Llama 3.3 70B)
         if (groqApiKey != null && !groqApiKey.isBlank()) {
-            System.out.println("🚀 Calling Groq (llama-3.3-70b-versatile) for Speaking Evaluation...");
+            System.out.println("🚀 Calling Groq for Speaking Evaluation...");
             try {
                 String result = callGroqContent(prompt);
                 if (result != null && !result.isBlank()) {
-                    System.out.println("✅ Groq evaluation succeeded.");
+                    System.out.println("✅ Groq Speaking evaluation succeeded.");
                     return result;
                 }
             } catch (Exception e) {
-                System.err.println("⚠️ Groq failed: " + e.getMessage() + ". Trying OpenAI fallback...");
+                System.err.println("⚠️ Groq Speaking failed: " + e.getMessage() + ". Trying OpenAI fallback...");
             }
         }
-
-        // 2. Fallback to OpenAI GPT-4o
         System.out.println("🔄 Falling back to OpenAI GPT-4o for Speaking Evaluation...");
         return callSpeakingPartWithOpenAI(prompt);
     }
@@ -99,7 +105,7 @@ public class AIService {
         headers.setBearerAuth(groqApiKey);
 
         Map<String, Object> requestBody = Map.of(
-                "model", "llama-3.3-70b-versatile",
+                "model", "openai/gpt-oss-120b",
                 "messages", List.of(
                         Map.of("role", "system", "content", systemMessage),
                         Map.of("role", "user", "content", prompt)
@@ -137,7 +143,7 @@ public class AIService {
 
     public String callSpeakingPartWithOpenAI(String prompt) {
         if (openaiApiKey == null || openaiApiKey.isBlank() || openaiApiKey.equals("your_openai_api_key_here")) {
-            throw new RuntimeException("Groq and OpenAI API keys are unavailable. Please configure GROQ_API_KEY or OPENAI_API_KEY in your .env / application.properties file.");
+            throw new RuntimeException("Groq and OpenAI API keys are unavailable. Please configure GROQ_API_KEY in your .env file.");
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -173,6 +179,227 @@ public class AIService {
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("choices").path(0).path("message").path("content").asText();
+            } else {
+                throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            System.err.println("❌ OpenAI Speaking call failed: " + e.getMessage());
+            throw new RuntimeException("Failed to call OpenAI for Speaking evaluation: " + e.getMessage(), e);
+        }
+    }
+
+    // =========================================================================
+    // 2. WRITING AI EVALUATION
+    //    Task 1: Groq (text-only, không cần vision) + retry
+    //    Task 2: Qwen LoRA → fallback Groq + retry
+    // =========================================================================
+
+    /**
+     * Writing Task 1: Dùng Groq (text-only).
+     * Câu hỏi đã mô tả đầy đủ biểu đồ, AI chấm dựa trên text.
+     */
+    public WritingAIResponse WritingTask1(String imageUrl, String question, String answer) {
+        String prompt = IeltsWritingRubrics.buildTask1Prompt(question, answer);
+        String response = callGroqWritingWithRetry(prompt, "Task1");
+        return parseResponse(response, answer);
+    }
+
+    /**
+     * Writing Task 2: Thử Qwen LoRA trước, fallback sang Groq.
+     */
+    public WritingAIResponse WritingTask2(String question, String answer) {
+        String prompt = IeltsWritingRubrics.buildTask2Prompt(question, answer);
+
+        // 1. Thử Qwen LoRA (nếu có endpoint)
+        if (qwenLoraApiUrl != null && !qwenLoraApiUrl.isBlank()) {
+            System.out.println("🤖 Calling Qwen 2.5 LoRA for Writing Task 2...");
+            try {
+                String qwenResponse = callQwenLoraWithRetry(question, answer);
+                if (qwenResponse != null && !qwenResponse.isBlank()) {
+                    System.out.println("✅ Qwen LoRA Task 2 succeeded.");
+                    return parseQwenResponse(qwenResponse, answer);
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Qwen LoRA failed: " + e.getMessage() + ". Falling back to Groq...");
+            }
+        } else {
+            System.out.println("ℹ️ QWEN_API_URL not set. Using Groq for Task 2.");
+        }
+
+        // 2. Fallback: Groq
+        System.out.println("🔄 Calling Groq for Writing Task 2 (fallback)...");
+        String response = callGroqWritingWithRetry(prompt, "Task2");
+        return parseResponse(response, answer);
+    }
+
+    // =========================================================================
+    // 3. QWEN LORA API CALL
+    // =========================================================================
+
+    /**
+     * Gọi Qwen 2.5 LoRA qua ngrok endpoint với retry.
+     * Expected request body: { "question": "...", "answer": "..." }
+     * Expected response: { "score": "6.5", "feedback": {...}, "evaluation": {...}, "sampleAnswer": "..." }
+     */
+    private String callQwenLoraWithRetry(String question, String answer) {
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                System.out.printf("🤖 Qwen LoRA attempt %d/%d...%n", attempt, maxRetries);
+                return callQwenLora(question, answer);
+            } catch (Exception e) {
+                lastException = e;
+                String errorMsg = e.getMessage() != null ? e.getMessage() : "";
+
+                // Rate limit: chờ lâu hơn
+                boolean isRateLimit = errorMsg.contains("429") || errorMsg.contains("rate_limit")
+                        || errorMsg.contains("Too Many Requests");
+                long delay = isRateLimit ? retryDelayMs * 3 : retryDelayMs * attempt;
+
+                System.err.printf("⚠️ Qwen attempt %d failed: %s. Retrying in %.1fs...%n",
+                        attempt, e.getMessage(), delay / 1000.0);
+
+                if (attempt < maxRetries) {
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        throw new RuntimeException("Qwen LoRA failed after " + maxRetries + " attempts: " +
+                (lastException != null ? lastException.getMessage() : "unknown"), lastException);
+    }
+
+    private String callQwenLora(String question, String answer) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> requestBody = Map.of(
+                "question", question,
+                "answer", answer
+        );
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    qwenLoraApiUrl,
+                    entity,
+                    String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                System.out.println("✅ Qwen LoRA response received.");
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Qwen API returned status: " + response.getStatusCode());
+            }
+        } catch (HttpStatusCodeException e) {
+            throw new RuntimeException("Qwen HTTP error [" + e.getStatusCode() + "]: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed calling Qwen LoRA API: " + e.getMessage(), e);
+        }
+    }
+
+    // =========================================================================
+    // 4. GROQ WRITING CALL WITH RETRY + EXPONENTIAL BACKOFF
+    // =========================================================================
+
+    /**
+     * Gọi Groq cho Writing với retry và exponential backoff.
+     * Xử lý lỗi rate limit 429 (quá tải model miễn phí).
+     */
+    private String callGroqWritingWithRetry(String prompt, String taskName) {
+        if (groqApiKey == null || groqApiKey.isBlank()) {
+            throw new RuntimeException("GROQ_API_KEY chưa được cấu hình. Vui lòng thêm vào .env file.");
+        }
+
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                System.out.printf("📝 Groq Writing %s attempt %d/%d...%n", taskName, attempt, maxRetries);
+                String result = callGroqWriting(prompt);
+                System.out.printf("✅ Groq Writing %s succeeded on attempt %d.%n", taskName, attempt);
+                return result;
+            } catch (Exception e) {
+                lastException = e;
+                String errorMsg = e.getMessage() != null ? e.getMessage() : "";
+
+                // Phát hiện rate limit (429) → chờ lâu hơn
+                boolean isRateLimit = errorMsg.contains("429") || errorMsg.contains("rate_limit")
+                        || errorMsg.contains("Too Many Requests") || errorMsg.contains("overloaded");
+
+                // Exponential backoff: 2s, 4s, 8s (nhân đôi mỗi lần)
+                long delay = isRateLimit
+                        ? retryDelayMs * 4  // rate limit: chờ 8s
+                        : retryDelayMs * attempt;  // lỗi khác: 2s, 4s, 6s
+
+                System.err.printf("⚠️ Groq %s attempt %d failed: %s. Retrying in %.1fs...%n",
+                        taskName, attempt, e.getMessage(), delay / 1000.0);
+
+                if (attempt < maxRetries) {
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        throw new RuntimeException("Groq Writing " + taskName + " failed after " + maxRetries + " attempts: " +
+                (lastException != null ? lastException.getMessage() : "unknown"), lastException);
+    }
+
+    private String callGroqWriting(String prompt) {
+        String systemMessage = """
+                You are an official, certified IELTS Writing Examiner.
+                Evaluate the student's writing strictly and objectively based on official IELTS Writing Public Band Descriptors.
+                You MUST return a STRICTLY VALID JSON object matching the exact schema requested.
+                Do NOT include any text outside the JSON object.
+                Do NOT use markdown code blocks. Return raw JSON only.
+                """;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(groqApiKey);
+
+        Map<String, Object> requestBody = Map.of(
+                "model", "llama-3.3-70b-versatile",
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemMessage),
+                        Map.of("role", "user", "content", prompt)
+                ),
+                "response_format", Map.of("type", "json_object"),
+                "temperature", 0.1,
+                "max_tokens", 4096
+        );
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    entity,
+                    String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+
+                // Kiểm tra xem có finish_reason = "length" không (token bị cắt)
+                String finishReason = root.path("choices").path(0).path("finish_reason").asText();
+                if ("length".equals(finishReason)) {
+                    System.err.println("⚠️ Groq response truncated due to token limit. Retrying...");
+                    throw new RuntimeException("Response truncated by token limit");
+                }
+
                 return root
                         .path("choices")
                         .path(0)
@@ -180,135 +407,167 @@ public class AIService {
                         .path("content")
                         .asText();
             } else {
-                throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+                throw new RuntimeException("Groq Writing API error: " + response.getStatusCode());
             }
+        } catch (HttpStatusCodeException e) {
+            String body = e.getResponseBodyAsString();
+            System.err.println("Groq Writing HTTP error body: " + body);
+            throw new RuntimeException("Groq Writing HTTP error [" + e.getStatusCode() + "]: " + body, e);
         } catch (Exception e) {
-            System.err.println("❌ OpenAI Speaking call failed: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to call OpenAI for Speaking evaluation: " + e.getMessage(), e);
+            if (e instanceof RuntimeException) throw (RuntimeException) e;
+            throw new RuntimeException("Failed calling Groq Writing API: " + e.getMessage(), e);
         }
     }
 
     // =========================================================================
-    // 2. WRITING AI EVALUATION
+    // 5. PARSE AI RESPONSE → WritingAIResponse
     // =========================================================================
 
-    public WritingAIResponse WritingTask1(String imageUrl, String question, String answer) {
-        String prompt = IeltsWritingRubrics.buildTask1Prompt(question, answer);
-        String response = callOpenAITask1(prompt, imageUrl);
-        return parseResponse(response, answer);
-    }
-
-    public WritingAIResponse WritingTask2(String question, String answer) {
-        String prompt = IeltsWritingRubrics.buildTask2Prompt(question, answer);
-        String response = callOpenAITask2(prompt);
-        return parseResponse(response, answer);
-    }
-
-    private String callOpenAITask1(String promptText, String imageUrl) {
-        try {
-            if (imageUrl == null || !imageUrl.startsWith("https://")) {
-                throw new IllegalArgumentException("Image URL must be a valid HTTPS URL: " + imageUrl);
-            }
-
-            System.out.println("==== IMAGE URL BEING SENT TO OPENAI ====");
-            System.out.println(imageUrl);
-
-            String requestBody = """
-                    {
-                      "model": "gpt-4o",
-                      "messages": [
-                        {
-                          "role": "user",
-                          "content": [
-                            { "type": "text", "text": %s },
-                            { "type": "image_url", "image_url": { "url": %s } }
-                          ]
-                        }
-                      ],
-                      "temperature": 0.2
-                    }
-                    """.formatted(
-                    objectMapper.writeValueAsString(promptText),
-                    objectMapper.writeValueAsString(imageUrl)
-            );
-
-            String response = webClient.post()
-                    .uri("/chat/completions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + openaiApiKey)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-            JsonNode jsonNode = objectMapper.readTree(response);
-            return jsonNode.get("choices").get(0).get("message").get("content").asText();
-
-        } catch (Exception e) {
-            System.err.println("==== OPENAI API ERROR (Writing Task 1) ====");
-            e.printStackTrace();
-            throw new RuntimeException("OpenAI API error: " + e.getMessage(), e);
-        }
-    }
-
-    private String callOpenAITask2(String prompt) {
-        try {
-            String requestBody = """
-                    {
-                      "model": "gpt-4o",
-                      "messages": [
-                        { "role": "user", "content": %s }
-                      ],
-                      "temperature": 0.1
-                    }
-                    """.formatted(objectMapper.writeValueAsString(prompt));
-
-            String response = webClient.post()
-                    .uri("/chat/completions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + openaiApiKey)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-            JsonNode jsonNode = objectMapper.readTree(response);
-            return jsonNode.get("choices").get(0).get("message").get("content").asText();
-
-        } catch (Exception e) {
-            System.err.println("==== OPENAI API ERROR (Writing Task 2) ====");
-            e.printStackTrace();
-            throw new RuntimeException("OpenAI API error: " + e.getMessage(), e);
-        }
-    }
-
+    /**
+     * Parse response từ Groq (đúng schema: scoreEva + reviewEva).
+     */
     private WritingAIResponse parseResponse(String content, String originalAnswer) {
         try {
+            // Thử parse trực tiếp JSON
+            if (content != null && content.trim().startsWith("{")) {
+                try {
+                    return objectMapper.readValue(content.trim(), WritingAIResponse.class);
+                } catch (Exception ignored) {
+                    // Thử lại với regex
+                }
+            }
+
+            // Dùng regex để tìm JSON object trong response
             Pattern pattern = Pattern.compile("\\{.*\\}", Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(content);
+            Matcher matcher = pattern.matcher(content != null ? content : "");
 
             if (matcher.find()) {
                 String jsonPart = matcher.group();
                 return objectMapper.readValue(jsonPart, WritingAIResponse.class);
             } else {
-                throw new IllegalArgumentException("Không tìm thấy JSON hợp lệ trong phản hồi");
+                throw new IllegalArgumentException("Không tìm thấy JSON hợp lệ trong phản hồi AI");
             }
         } catch (Exception e) {
-            System.err.println("Lỗi khi parse response: " + e.getMessage());
-            throw new RuntimeException("Không thể phân tích phản hồi từ AI", e);
+            System.err.println("Lỗi khi parse AI response: " + e.getMessage());
+            System.err.println("Raw content: " + (content != null ? content.substring(0, Math.min(500, content.length())) : "null"));
+            throw new RuntimeException("Không thể phân tích phản hồi từ AI: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Adapter đặc biệt cho Qwen LoRA model.
+     * Qwen trả về evaluation.TaskAchievement.comment (không có scoreEva/reviewEva).
+     * Method này normalize sang schema chuẩn WritingAIResponse.
+     */
+    private WritingAIResponse parseQwenResponse(String content, String originalAnswer) {
+        try {
+            JsonNode root = objectMapper.readTree(content);
+
+            WritingAIResponse result = new WritingAIResponse();
+
+            // ---- Score ----
+            result.setScore(root.path("score").asText("0"));
+
+            // ---- Sample Answer ----
+            result.setSampleAnswer(root.path("sampleAnswer").asText(""));
+
+            // ---- Feedback ----
+            WritingAIResponse.Feedback feedback = new WritingAIResponse.Feedback();
+            JsonNode feedbackNode = root.path("feedback");
+
+            // Lấy overallComment từ feedback.overallComment
+            feedback.setOverallComment(feedbackNode.path("overallComment").asText(""));
+
+            // errorCorrections - nếu rỗng thì set list rỗng
+            if (feedbackNode.has("errorCorrections") && feedbackNode.get("errorCorrections").isArray()) {
+                feedback.setErrorCorrections(
+                    objectMapper.convertValue(feedbackNode.get("errorCorrections"),
+                        objectMapper.getTypeFactory().constructCollectionType(java.util.List.class,
+                            WritingAIResponse.ErrorCorrection.class))
+                );
+            } else {
+                feedback.setErrorCorrections(new java.util.ArrayList<>());
+            }
+
+            // sentenceImprovements - nếu rỗng thì set list rỗng
+            if (feedbackNode.has("sentenceImprovements") && feedbackNode.get("sentenceImprovements").isArray()) {
+                feedback.setSentenceImprovements(
+                    objectMapper.convertValue(feedbackNode.get("sentenceImprovements"),
+                        objectMapper.getTypeFactory().constructCollectionType(java.util.List.class,
+                            WritingAIResponse.SentenceImprovement.class))
+                );
+            } else {
+                feedback.setSentenceImprovements(new java.util.ArrayList<>());
+            }
+
+            result.setFeedback(feedback);
+
+            // ---- Evaluation - Adapter Qwen → Schema chuẩn ----
+            JsonNode evalNode = root.path("evaluation");
+            web.ielts.Test.result.model.writing.EvaluationWritingAnswer evaluation =
+                new web.ielts.Test.result.model.writing.EvaluationWritingAnswer();
+
+            evaluation.setTaskAchievement(
+                buildReviewFromQwen(evalNode.path("TaskAchievement"), "Task Achievement"));
+            evaluation.setCoherenceCohesion(
+                buildReviewFromQwen(evalNode.path("CoherenceCohesion"), "Coherence & Cohesion"));
+            evaluation.setLexicalResource(
+                buildReviewFromQwen(evalNode.path("LexicalResource"), "Lexical Resource"));
+            evaluation.setGrammar(
+                buildReviewFromQwen(evalNode.path("Grammar"), "Grammatical Range & Accuracy"));
+
+            result.setEvaluation(evaluation);
+
+            System.out.println("✅ Qwen response parsed successfully. Score: " + result.getScore());
+            return result;
+
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to parse Qwen response with adapter: " + e.getMessage());
+            System.err.println("Raw Qwen content (first 300 chars): " +
+                (content != null ? content.substring(0, Math.min(300, content.length())) : "null"));
+            // Thử parse theo cách thông thường như fallback
+            return parseResponse(content, originalAnswer);
+        }
+    }
+
+    /**
+     * Chuyển đổi một evaluation node của Qwen (có thể dùng 'comment', 'scoreEva', hoặc 'reviewEva')
+     * thành Review object chuẩn.
+     */
+    private web.ielts.Test.result.model.writing.Review buildReviewFromQwen(JsonNode node, String criteriaName) {
+        web.ielts.Test.result.model.writing.Review review = new web.ielts.Test.result.model.writing.Review();
+
+        // Lấy score: ưu tiên scoreEva → score → mặc định từ overall score
+        String score = "";
+        if (!node.path("scoreEva").isMissingNode()) score = node.path("scoreEva").asText("");
+        else if (!node.path("score").isMissingNode()) score = node.path("score").asText("");
+        review.setScoreEva(score.isEmpty() ? "N/A" : score);
+
+        // Lấy comment: ưu tiên reviewEva → comment → description
+        String comment = "";
+        if (!node.path("reviewEva").isMissingNode()) comment = node.path("reviewEva").asText("");
+        else if (!node.path("comment").isMissingNode()) comment = node.path("comment").asText("");
+        else if (!node.path("description").isMissingNode()) comment = node.path("description").asText("");
+        review.setReviewEva(comment.isEmpty() ? criteriaName + " evaluated by Qwen LoRA." : comment);
+
+        return review;
+    }
+
     // =========================================================================
-    // 3. GENERAL CHAT INTERACTION
+    // 6. GENERAL CHAT INTERACTION
     // =========================================================================
 
     public String callChatWithMessages(List<Map<String, String>> messages) {
+        if (groqApiKey == null || groqApiKey.isBlank()) {
+            throw new RuntimeException("GROQ_API_KEY chưa được cấu hình.");
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(apiKey);
+        headers.setBearerAuth(groqApiKey);
 
         Map<String, Object> requestBody = Map.of(
-                "model", "gpt-4o",
+                "model", "llama-3.3-70b-versatile",
                 "messages", messages,
                 "temperature", 0.2,
                 "max_tokens", 1500
@@ -318,7 +577,7 @@ public class AIService {
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(
-                    "https://api.openai.com/v1/chat/completions",
+                    "https://api.groq.com/openai/v1/chat/completions",
                     entity,
                     String.class
             );
@@ -332,10 +591,10 @@ public class AIService {
                         .path("content")
                         .asText();
             } else {
-                throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+                throw new RuntimeException("Groq Chat API error: " + response.getStatusCode());
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to call OpenAI GPT API or parse response", e);
+            throw new RuntimeException("Failed to call Groq Chat API: " + e.getMessage(), e);
         }
     }
 }

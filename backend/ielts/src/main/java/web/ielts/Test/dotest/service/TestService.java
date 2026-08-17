@@ -50,7 +50,6 @@ public class TestService {
 
     public Map<Integer, List<ListTest>> getTestsGroupedByYear() {
         return testRepository.findAll().stream()
-                .filter(t -> t.getCreatedAt() != null && !t.getCreatedAt().isEmpty())
                 .map(this::toListTest)
                 .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(ListTest::getYear));
@@ -74,7 +73,8 @@ public class TestService {
 
     private <T> Map<Integer, List<ListTest>> getTestsBySkill(List<T> skills) {
         Map<String, Test> testMap = testRepository.findAll().stream()
-                .collect(Collectors.toMap(Test::getTestId, t -> t));
+                .filter(t -> t.getTestId() != null)
+                .collect(Collectors.toMap(Test::getTestId, t -> t, (existing, replacement) -> existing));
 
         return skills.stream()
                 .map(skill -> {
@@ -85,7 +85,12 @@ public class TestService {
                     else if (skill instanceof Speaking) testId = ((Speaking) skill).getTestId();
 
                     Test test = testMap.get(testId);
-                    return toListTest(test);
+                    if (test != null) {
+                        return toListTest(test);
+                    } else if (testId != null) {
+                        return new ListTest(testId, testId, LocalDate.now().getYear());
+                    }
+                    return null;
                 })
                 .filter(Objects::nonNull)
                 .distinct()
@@ -93,12 +98,21 @@ public class TestService {
     }
 
     private ListTest toListTest(Test test) {
-        if (test == null || test.getCreatedAt() == null || test.getCreatedAt().isEmpty()) return null;
-        try {
-            int year = LocalDate.parse(test.getCreatedAt()).getYear();
-            return new ListTest(test.getTestId(), test.getTestTitle(), year);
-        } catch (DateTimeParseException e) {
-            return null;
+        if (test == null || test.getTestId() == null) return null;
+        int year = LocalDate.now().getYear();
+        if (test.getCreatedAt() != null && !test.getCreatedAt().isEmpty()) {
+            try {
+                year = LocalDate.parse(test.getCreatedAt().substring(0, Math.min(10, test.getCreatedAt().length()))).getYear();
+            } catch (Exception e) {
+                try {
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(20\\d{2})\\b").matcher(test.getCreatedAt());
+                    if (m.find()) {
+                        year = Integer.parseInt(m.group(1));
+                    }
+                } catch (Exception ignored) {}
+            }
         }
+        String title = test.getTestTitle() != null ? test.getTestTitle() : test.getTestId();
+        return new ListTest(test.getTestId(), title, year);
     }
 }

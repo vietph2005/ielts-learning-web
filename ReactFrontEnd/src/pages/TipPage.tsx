@@ -1,11 +1,11 @@
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Headphones, Book, PenLine, Mic } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
-import {HeroSection} from "@/components/sections/HeroSection.tsx";
+import { HeroSection } from "@/components/sections/HeroSection";
 
 type Skill = "Listening" | "Reading" | "Writing" | "Speaking";
 
@@ -30,8 +30,6 @@ function TipPage() {
     const [tips, setTips] = useState<Tip[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    
 
     const skills: SkillInfo[] = [
         {
@@ -64,13 +62,12 @@ function TipPage() {
             try {
                 setLoading(true);
                 setError(null);
-                const response = await fetch(`${API_URL}/api/student/${newSkill}`);
-                if (!response.ok) throw new Error("Failed to fetch tips");
-                const data = await response.json();
-                setTips(data);
-            } catch (error) {
+                const data = await apiClient.get<Tip[]>(`/tips?skill=${newSkill.toLowerCase()}`);
+                setTips(Array.isArray(data) ? data : []);
+            } catch (error: any) {
                 console.error("Error fetching tips:", error);
                 setError("Failed to load tips. Please try again later.");
+                setTips([]);
             } finally {
                 setLoading(false);
             }

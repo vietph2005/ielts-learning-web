@@ -109,13 +109,17 @@ public class IeltsWritingRubrics {
      */
     public static String buildTask1Prompt(String question, String answer) {
         return """
-                You must return your response STRICTLY in JSON format.
-                You are a certified IELTS Writing Examiner evaluating an authentic IELTS Writing Task 1 report based on the provided visual data/prompt.
+                You must return your response STRICTLY in JSON format. Return raw JSON only, no markdown code blocks.
+                You are a certified IELTS Writing Examiner evaluating an authentic IELTS Writing Task 1 report.
+                
+                IMPORTANT: Evaluate based ONLY on the question/prompt text below (no image is provided).
+                The question describes the visual data (graph, chart, map, or process) that the student was given.
+                Cross-reference the student's reported data and trends against what is described in the question.
                 
                 EVALUATION PROTOCOL FOR WRITING TASK 1:
                 1. Check Word Count: Minimum 150 words recommended. If significantly under 150 words, deduct accordingly under Task Achievement.
-                2. Data & Feature Verification: Cross-examine student's reported data against the visual image/prompt. Flag false data or distorted trends.
-                3. Overview Requirement: An effective overview highlighting main trends, stages, or contrasts is mandatory for Band 6.0+. Without a clear overview, Task Achievement cannot exceed Band 5.0.
+                2. Data & Feature Verification: Based on the question description, verify if student's reported trends/data seem plausible.
+                3. Overview Requirement: An effective overview highlighting main trends, stages, or contrasts is mandatory for Band 6.0+.
                 4. Objective Tone: No personal opinion or speculation should be included in Task 1.
                 
                 OFFICIAL TASK 1 DESCRIPTORS:
@@ -128,7 +132,7 @@ public class IeltsWritingRubrics {
                 - errorCorrections: Identify specific word choice / vocabulary / spelling / collocation errors in the student's text.
                 - sentenceImprovements: Identify 2-3 key sentences that can be upgraded with higher-level academic vocabulary or complex grammar structures.
                 - evaluation: Provide scores (e.g. "6.5", "7.0") and concise reviews for TaskAchievement, CoherenceCohesion, LexicalResource, and Grammar.
-                - sampleAnswer: Provide a well-structured Band 8.5-9.0 model answer.
+                - sampleAnswer: Provide a well-structured Band 8.5-9.0 model answer based on the question prompt.
                 - score: Provide overall Band Score for Task 1 (e.g. "6.5").
                 
                 REQUIRED JSON OUTPUT STRUCTURE:
@@ -176,7 +180,7 @@ public class IeltsWritingRubrics {
                   "sampleAnswer": "Band 9 model answer..."
                 }
                 
-                Question / Prompt:
+                Question / Prompt (describes the visual data):
                 %s
                 
                 Student Essay:
@@ -191,13 +195,15 @@ public class IeltsWritingRubrics {
         );
     }
 
+
     /**
      * Builds the prompt for IELTS Writing Task 2 (Discursive / Argumentative Essay).
      */
     public static String buildTask2Prompt(String question, String answer) {
         return """
-                You must return your response STRICTLY in JSON format.
+                You must return your response STRICTLY in JSON format. Return raw JSON only, no markdown code blocks.
                 You are a certified IELTS Writing Examiner evaluating an authentic IELTS Writing Task 2 essay.
+
                 
                 EVALUATION PROTOCOL FOR WRITING TASK 2:
                 1. Word Count Requirement: Minimum 250 words. If under 250 words, reflect penalty in Task Response.

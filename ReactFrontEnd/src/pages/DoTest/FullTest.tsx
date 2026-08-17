@@ -1,18 +1,13 @@
 "use client";
-import { API_URL } from "@/config/api";
-
+import apiClient from "@/lib/apiClient";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import {Lightbulb, Monitor} from "lucide-react";
+import { Lightbulb, Monitor } from "lucide-react";
 import type { Test } from "@/types/apiTypes";
 import { useAuth } from "@/contexts/AuthContext";
-
-
-
 
 export default function FullTest() {
     const { testId } = useParams();
@@ -24,22 +19,14 @@ export default function FullTest() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
+        if (!testId) return;
         (async () => {
             try {
-                const res = await fetch(`${API_URL}/verify/fullTest/${testId}`, {
-                    method: "GET",
-                    credentials: "include",
-                });
-
-                if (!res.ok) {
-                    console.log("hello");
-                    return;
+                const data = await apiClient.get<Test>(`/tests/${testId}`);
+                if (data) {
+                    setTest(data);
+                    setIsOpen(true);
                 }
-
-                const data = await res.json();
-                console.log("Fetched test data:", data);
-                setTest(data);
-                setIsOpen(true); // mở modal sau khi load xong
             } catch (err) {
                 console.error("Failed to fetch test:", err);
             } finally {
@@ -54,36 +41,38 @@ export default function FullTest() {
             return;
         }
         try {
-            const res = await fetch(`${API_URL}/verify/test-answer/create?testId=${testId}&username=${user.username}`, {
-                method: "POST",
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error("Không thể tạo lần làm bài mới");
-            const data = await res.json();
-            const testAnswerId = data.id || data._id || data.testAnswerId;
+            const data: any = await apiClient.post(`/test-answers?testId=${testId}&username=${user.username}`);
+            const testAnswerId = data?.id || data?._id || data?.testAnswerId;
             if (!testAnswerId) throw new Error("Không nhận được testAnswerId");
             navigate(`/test/listening/${testId}?testAnswerId=${testAnswerId}&mode=fulltest`);
-        } catch (err) {
-            alert("Error starting test: " + err);
+        } catch (err: any) {
+            alert("Error starting test: " + (err?.message || err));
         }
     };
 
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
     }
 
     if (!test) {
-        return <div>Không tìm thấy bài test.</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center text-gray-500">
+                Không tìm thấy bài test.
+            </div>
+        );
     }
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            {/* Dialog Modal */}
             <Dialog
                 open={isOpen}
                 onOpenChange={(open) => {
                     if (!open) {
-                        navigate(-1); // Quay lại trang trước khi đóng dialog (ấn X)
+                        navigate(-1);
                     } else {
                         setIsOpen(open);
                     }
@@ -95,14 +84,12 @@ export default function FullTest() {
                     </VisuallyHidden>
 
                     <div className="text-center space-y-6">
-                        {/* Icon */}
                         <div className="flex justify-center">
                             <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <Monitor className="w-8 h-8 text-blue-600" />
                             </div>
                         </div>
 
-                        {/* Info with lightbulb */}
                         <div className="flex items-start gap-3 text-left bg-blue-50 p-4 rounded-lg">
                             <Lightbulb className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" />
                             <p className="text-gray-700 text-sm leading-relaxed">
@@ -110,7 +97,6 @@ export default function FullTest() {
                             </p>
                         </div>
 
-                        {/* Test Information */}
                         <div className="text-left space-y-4">
                             <h2 className="text-lg font-semibold text-gray-800">Test information</h2>
                             <ul className="space-y-3 text-gray-700 text-sm">
@@ -125,10 +111,8 @@ export default function FullTest() {
                             </ul>
                         </div>
 
-                        {/* Confirmation text */}
                         <p className="text-gray-600 text-sm pt-4">Please confirm if you would like to continue.</p>
 
-                        {/* Confirm button */}
                         <Button
                             className="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-full text-base font-medium"
                             onClick={handleConfirmStart}

@@ -1,10 +1,11 @@
-import { API_URL } from "@/config/api";
-import {useEffect, useState} from "react";
+import apiClient from "@/lib/apiClient";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import {Button} from "@/components/ui/button.tsx";
-import {PracticeExercise} from "@/components/sections/PracticeExcercise.tsx";
-import type {Exercises} from "@/types/apiTypes"
-import {StrategyAndTip} from "@/components/sections/StrategyAndTip.tsx";
+import { Button } from "@/components/ui/button";
+import { PracticeExercise } from "@/components/sections/PracticeExcercise";
+import type { Exercises } from "@/types/apiTypes";
+import { StrategyAndTip } from "@/components/sections/StrategyAndTip";
+
 interface TipDetail {
     id: string | number;
     type: string;
@@ -16,16 +17,13 @@ interface TipDetail {
 }
 
 function TipDetail() {
-    
     const { skill, id } = useParams<{ skill: string; id: string }>();
     const [detail, setDetail] = useState<TipDetail | null>(null);
 
-
     useEffect(() => {
-        if (!id) return;
+        if (!id || !skill) return;
         window.scrollTo(0, 0);
-        const data = fetch(`${API_URL}/api/${skill}/${id}`)
-            .then((res) => res.json())
+        apiClient.get<TipDetail>(`/tips/${skill.toLowerCase()}/${id}`)
             .then((data: TipDetail) => {
                 setDetail(data);
             })
@@ -33,36 +31,32 @@ function TipDetail() {
                 console.error("Error calling tip detail API:", error);
                 setDetail(null);
             });
-        console.log("Data ne:" + data);
     }, [id, skill]);
 
     if (!detail) {
         return (
-            <div className="min-h-screen flex items-center justify-center text-red-500">
-                {/*No data found.*/}
+            <div className="min-h-screen flex items-center justify-center text-gray-500">
+                <p>Loading tip details...</p>
             </div>
         );
     }
-    return(
 
+    return (
         <div className="min-h-screen bg-white">
             <section className="py-16 bg-gray-50">
                 <div className="container mx-auto px-4">
-                    {/* Reading Skill Content */}
                     <div className="max-w-4xl mx-auto">
-                        <StrategyAndTip {...detail}/>
-                        {/* Practice Exercise */}
-                        <PracticeExercise exercises={detail.exercises} skill={skill}/>
-                        {/* Optional back button */}
+                        <StrategyAndTip {...detail} />
+                        <PracticeExercise exercises={detail.exercises} skill={skill} />
                         <div className="px-6 pb-6">
                             <Button className="w-full bg-emerald-600 hover:bg-emerald-700"
-                                    onClick={() => history.back()}>← Back</Button>
+                                onClick={() => history.back()}>← Back</Button>
                         </div>
                     </div>
                 </div>
             </section>
         </div>
-    )
-};
+    );
+}
 
 export default TipDetail;

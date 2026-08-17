@@ -1,22 +1,24 @@
-import { Play} from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Play } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 
 export interface IELTSTest {
-    testId: string
-    testTitle: string
-    tags: string[]
-    createdAt: string
+    testId: string;
+    testTitle: string;
+    tags?: string[];
+    createdAt?: string;
 }
 
 interface LatestTestsSectionProps {
-    tests: IELTSTest[]
+    tests?: IELTSTest[];
 }
 
-export function LatestTestsSection({ tests }: LatestTestsSectionProps) {
+export function LatestTestsSection({ tests = [] }: LatestTestsSectionProps) {
     const navigate = useNavigate();
+    const testList = Array.isArray(tests) ? tests : [];
+
     return (
         <section className="py-16 bg-white ">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,12 +28,12 @@ export function LatestTestsSection({ tests }: LatestTestsSectionProps) {
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {tests.map((test, index) => (
+                    {testList.map((test, index) => (
                         <Card key={test.testId || index} className="hover:shadow-lg transition-shadow">
                             <CardHeader>
                                 {/* Hiển thị tags dưới dạng Badge */}
                                 <div className="flex flex-wrap gap-2 mb-2">
-                                    {test.tags.map((tag, tagIdx) => (
+                                    {(test.tags || []).map((tag, tagIdx) => (
                                         <Badge key={`${tag}-${tagIdx}`} variant="outline" className="text-xs">
                                             {tag}
                                         </Badge>
@@ -57,5 +59,5 @@ export function LatestTestsSection({ tests }: LatestTestsSectionProps) {
                 </div>
             </div>
         </section>
-    )
+    );
 }

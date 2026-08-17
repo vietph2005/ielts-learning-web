@@ -1,11 +1,10 @@
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { DoTestHeader } from "@/components/layout/doTest/DoTestHeader";
 import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { customFetch } from "@/components/sections/customFetch";
 
 export type Question = {
     question: string;
@@ -30,189 +29,158 @@ export type TaskListening = {
     sections: Section[];
 };
 
-export type ListeningTest = {
-    testId: string;
-    audioUrl?: string;
-    tasks: TaskListening[];
-    username: string;
-    skill: string;
-};
-
 interface QuestionWithStudentAnswer extends Question {
     studentAnswer?: string | null;
     questionId?: number;
 }
 
+interface ListeningTest {
+    testId: string;
+    audioUrl?: string;
+    tasks: TaskListening[];
+    username?: string;
+    skill?: string;
+}
+
 export default function ListeningTest() {
     const { testId } = useParams<{ testId: string }>();
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [currentPart, setCurrentPart] = useState(1);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [answers, setAnswers] = useState<Record<number, string>>({});
-    const [volume, setVolume] = useState(75);
-    const [listeningTest, setListeningTest] = useState<ListeningTest | null>(null);
-    const [duration, setDuration] = useState(0);
-    const [progress, setProgress] = useState(0);
     const [searchParams] = useSearchParams();
     const testAnswerId = searchParams.get("testAnswerId");
     const mode = searchParams.get("mode");
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    const [isHighlightMode, setIsHighlightMode] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [currentPart, setCurrentPart] = useState(1);
+    const [listeningTest, setListeningTest] = useState<ListeningTest | null>(null);
+    const [answers, setAnswers] = useState<Record<number, string>>({});
+    const [_isSubmitted, setIsSubmitted] = useState(false);
 
-    // Khởi tạo dark mode từ localStorage
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        return localStorage.getItem("darkMode") === "true";
-    });
-    const toggleHighlightMode = () => {
-        setIsHighlightMode((prev) => !prev);
-    };
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+    const [isHighlightMode, setIsHighlightMode] = useState(false);
+
+    // Audio Player State
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [volume, setVolume] = useState(1);
+    const [_isMuted, _setIsMuted] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+    const toggleHighlightMode = () => setIsHighlightMode((prev) => !prev);
+
     useEffect(() => {
         localStorage.setItem("darkMode", isDarkMode ? "true" : "false");
     }, [isDarkMode]);
 
-    const toggleDarkMode = () => {
-        setIsDarkMode((prev) => !prev);
-    };
-
-    
-
-    // Fetch dữ liệu test listening
     useEffect(() => {
         if (!testId) return;
-        customFetch(`${API_URL}/verify/listening/${testId}`)
-            .then((res) => (res.ok ? res.json() : null))
+        apiClient.get<any>(`/tests/${testId}/listening`)
             .then((data) => {
                 if (!data) return;
                 let questionId = 1;
                 const updated = structuredClone(data);
-                updated.tasks.forEach((task: TaskListening) => {
-                    task.sections.forEach((section: Section) => {
-                        section.questions.forEach((q: QuestionWithStudentAnswer) => {
-                            (q as QuestionWithStudentAnswer).questionId = questionId++;
-                        });
+                if (updated.tasks && Array.isArray(updated.tasks)) {
+                    updated.tasks.forEach((task: TaskListening) => {
+                        if (task.sections && Array.isArray(task.sections)) {
+                            task.sections.forEach((section: Section) => {
+                                if (section.questions && Array.isArray(section.questions)) {
+                                    section.questions.forEach((q: QuestionWithStudentAnswer) => {
+                                        (q as QuestionWithStudentAnswer).questionId = questionId++;
+                                    });
+                                }
+                            });
+                        }
                     });
-                });
+                }
                 setListeningTest(updated);
+            })
+            .catch((err) => {
+                console.error("Failed to load listening test:", err);
             });
     }, [testId]);
 
     const currentTask = listeningTest?.tasks[currentPart - 1];
-    const currentAudioUrl = currentTask?.audioUrl || listeningTest?.audioUrl;
 
-    // Xử lý sự kiện audio
     useEffect(() => {
         setIsPlaying(false);
         setCurrentTime(0);
         setProgress(0);
         setDuration(0);
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+    }, [currentPart]);
 
+    useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
 
-        audio.pause();
-        audio.currentTime = 0;
-
-        const update = () => {
+        const updateTime = () => {
             setCurrentTime(audio.currentTime);
-            if (audio.duration) {
-                setProgress((audio.currentTime / audio.duration) * 100);
-            }
-        };
-        const loaded = () => setDuration(audio.duration || 0);
-        const handleEnded = () => {
-            setIsPlaying(false);
-            setProgress(100);
-        };
-        const handleError = (e: Event) => {
-            console.error("Audio failed to load:", e);
-            setIsPlaying(false);
+            setProgress((audio.currentTime / audio.duration) * 100 || 0);
         };
 
-        audio.addEventListener("timeupdate", update);
-        audio.addEventListener("loadedmetadata", loaded);
-        audio.addEventListener("ended", handleEnded);
-        audio.addEventListener("error", handleError);
-
-        if (audio.readyState >= 1) {
+        const updateDuration = () => {
             setDuration(audio.duration || 0);
-        }
+        };
+
+        audio.addEventListener("timeupdate", updateTime);
+        audio.addEventListener("loadedmetadata", updateDuration);
 
         return () => {
-            audio.removeEventListener("timeupdate", update);
-            audio.removeEventListener("loadedmetadata", loaded);
-            audio.removeEventListener("ended", handleEnded);
-            audio.removeEventListener("error", handleError);
+            audio.removeEventListener("timeupdate", updateTime);
+            audio.removeEventListener("loadedmetadata", updateDuration);
         };
-    }, [currentPart, currentAudioUrl, listeningTest]);
-
-    const handleFullscreen = () => {
-        if (!containerRef.current) return;
-
-        if (!document.fullscreenElement) {
-            containerRef.current!.requestFullscreen()
-                .catch((err) => {
-                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
-                });
-        } else {
-            document.exitFullscreen()
-                .catch((err) => {
-                    console.error(`Error attempting to exit fullscreen: ${err.message}`);
-                });
-        }
-    };
+    }, [currentTask]);
 
     const togglePlayPause = () => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        if (!currentAudioUrl) {
-            alert("Không tìm thấy link audio cho phần thi này!");
-            return;
-        }
-
+        if (!audioRef.current) return;
         if (isPlaying) {
-            audio.pause();
-            setIsPlaying(false);
+            audioRef.current.pause();
         } else {
-            audio.play()
-                .then(() => setIsPlaying(true))
-                .catch((err) => {
-                    console.error("Cannot play audio:", err);
-                    alert("Không thể phát file âm thanh. Vui lòng kiểm tra lại link audio trên Supabase.");
-                    setIsPlaying(false);
-                });
+            audioRef.current.play();
         }
-    };
-    const resetAudio = () => {
-        const audio = audioRef.current;
-        if (audio) {
-            audio.currentTime = 0;
-            setProgress(0);
-            setCurrentTime(0);
-            setIsPlaying(false);
-        }
+        setIsPlaying(!isPlaying);
     };
 
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const audio = audioRef.current;
-        const value = +e.target.value;
-        if (audio && duration) {
-            audio.currentTime = (value / 100) * duration;
-            setProgress(value);
-        }
+        if (!audioRef.current) return;
+        const seekTime = (parseFloat(e.target.value) / 100) * duration;
+        audioRef.current.currentTime = seekTime;
+        setProgress(parseFloat(e.target.value));
     };
 
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const audio = audioRef.current;
-        const value = +e.target.value;
-        setVolume(value);
-        if (audio) audio.volume = value / 100;
+        const val = parseFloat(e.target.value) / 100;
+        setVolume(val);
+        if (audioRef.current) {
+            audioRef.current.volume = val;
+        }
+    };
+
+    const resetAudio = () => {
+        if (!audioRef.current) return;
+        audioRef.current.currentTime = 0;
+        setProgress(0);
+        setCurrentTime(0);
+    };
+
+    const handleFullscreen = () => {
+        if (!containerRef.current) return;
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch((err) => console.error(err));
+        } else {
+            document.exitFullscreen();
+        }
     };
 
     const formatTime = (time: number) => {
+        if (isNaN(time)) return "00:00";
         const min = Math.floor(time / 60)
             .toString()
             .padStart(2, "0");
@@ -228,8 +196,9 @@ export default function ListeningTest() {
 
     const handleSubmit = async () => {
         if (!listeningTest) return;
-        const dataToSend = structuredClone(listeningTest);
-        if (user?.username) dataToSend.username = user.username;
+        setIsSubmitted(true);
+        const dataToSend: any = structuredClone(listeningTest);
+        dataToSend.username = user?.username || "anonymous";
         dataToSend.skill = "listening";
         delete dataToSend.audioUrl;
         dataToSend.tasks.forEach((task: TaskListening) => {
@@ -247,30 +216,20 @@ export default function ListeningTest() {
             });
         });
         try {
-            let res;
-            if (testAnswerId) {
-                res = await customFetch(`${API_URL}/verify/listening/submit?testAnswerId=${testAnswerId}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(dataToSend),
-                });
-            } else {
-                res = await customFetch(`${API_URL}/verify/listening/submit`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(dataToSend),
-                });
-            }
-            const result = await res.json();
+            const url = testAnswerId ? `/test-answers/listening?testAnswerId=${testAnswerId}` : `/test-answers/listening`;
+            const result: any = await apiClient.post(url, dataToSend);
             alert("Submit successful!");
             if (mode === "fulltest") {
                 navigate(`/test/reading/${testId}?testAnswerId=${testAnswerId}&mode=${mode}`);
             } else {
-                navigate(`/listening-result/${result.id}`);
+                const resId = result?.id || result?._id;
+                navigate(`/listening-result/${resId}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error when submitting.");
+            alert("Error when submitting: " + (error?.message || error));
+        } finally {
+            setIsSubmitted(false);
         }
     };
 
@@ -325,7 +284,7 @@ export default function ListeningTest() {
                             type="range"
                             min="0"
                             max="100"
-                            value={volume}
+                            value={volume * 100}
                             onChange={handleVolumeChange}
                             className="w-24"
                         />

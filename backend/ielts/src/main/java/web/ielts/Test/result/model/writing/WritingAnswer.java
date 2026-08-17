@@ -13,6 +13,7 @@ public class WritingAnswer {
     private TaskWritingAnswer task1;
     private TaskWritingAnswer task2;
     private String gradingMethod;
+    private String gradingStatus; // "grading" | "graded" | "grading_failed"
 
     private String skill;
     private double band;
@@ -34,6 +35,14 @@ public class WritingAnswer {
 
     public String getGradingMethod() {
         return gradingMethod;
+    }
+
+    public String getGradingStatus() {
+        return gradingStatus;
+    }
+
+    public void setGradingStatus(String gradingStatus) {
+        this.gradingStatus = gradingStatus;
     }
 
     @Override

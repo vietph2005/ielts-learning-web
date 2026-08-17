@@ -1,106 +1,87 @@
-"use client"
-import { API_URL } from "@/config/api";
-
-import { useEffect, useRef, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mic, Square, ChevronRight, CheckCircle, AlertCircle, Volume2, Brain } from "lucide-react"
-import { useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { useAuth } from "@/contexts/AuthContext"
-import { customFetch } from "@/components/sections/customFetch"
-import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal"
-import { DoTestSpeakingHeader } from "@/components/layout/doTest/DoTestSpeakingHeader"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle
-} from "@/components/ui/dialog";
-import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
-import {Label} from "@/components/ui/label";
-
-
+"use client";
+import apiClient from "@/lib/apiClient";
+import { useEffect, useRef, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mic, Square, ChevronRight, CheckCircle, AlertCircle, Volume2, Brain } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { DoTestSpeakingHeader } from "@/components/layout/doTest/DoTestSpeakingHeader";
 
 type Speaking = {
-    _id: string
-    username: string
-    skill: string
+    _id: string;
+    username: string;
+    skill: string;
     part1: {
-        partNumber: number
-        title: string
-        instruction: string
-        questions: { question: string }[]
-    }
+        partNumber: number;
+        title: string;
+        instruction: string;
+        questions: { question: string }[];
+    };
     part2: {
-        partNumber: number
-        title: string
-        instruction: string
-        question: string
-        cueCards: string[]
-    }
+        partNumber: number;
+        title: string;
+        instruction: string;
+        question: string;
+        cueCards: string[];
+    };
     part3: {
-        partNumber: number
-        title: string
-        instruction: string
-        questions: { question: string }[]
-    }
-}
+        partNumber: number;
+        title: string;
+        instruction: string;
+        questions: { question: string }[];
+    };
+};
 
-type Part = "part1" | "part2" | "part3"
+type Part = "part1" | "part2" | "part3";
 
 const SpeakingTest = () => {
-    const { testId } = useParams<{ testId: string }>()
+    const { testId } = useParams<{ testId: string }>();
     const [searchParams] = useSearchParams();
     const testAnswerId = searchParams.get("testAnswerId");
     const mode = searchParams.get("mode");
-    const { user } = useAuth()
-    const TOTAL_TEST_TIME = 1600
-    const [speaking, setSpeaking] = useState<Speaking | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [currentPart, setCurrentPart] = useState<Part>("part1")
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-    const [audioUrls, setAudioUrls] = useState<{ [key: string]: string }>({})
-    const [recordingKey, setRecordingKey] = useState<string | null>(null)
-    const [isThinking, setIsThinking] = useState(false)
-    const [thinkingTime, setThinkingTime] = useState(0)
-    const [partStarted, setPartStarted] = useState(false)
-    const [showConfirmNextPart, setShowConfirmNextPart] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [timeUp, setTimeUp] = useState(false)
-    const navigate = useNavigate()
-    const timerRef = useRef<number | null>(null)
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-    const audioChunksRef = useRef<Blob[]>([])
+    const { user } = useAuth();
+    const TOTAL_TEST_TIME = 1600;
+    const [speaking, setSpeaking] = useState<Speaking | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [currentPart, setCurrentPart] = useState<Part>("part1");
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [audioUrls, setAudioUrls] = useState<{ [key: string]: string }>({});
+    const [recordingKey, setRecordingKey] = useState<string | null>(null);
+    const [isThinking, setIsThinking] = useState(false);
+    const [thinkingTime, setThinkingTime] = useState(0);
+    const [partStarted, setPartStarted] = useState(false);
+    const [showConfirmNextPart, setShowConfirmNextPart] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [timeUp, setTimeUp] = useState(false);
+    const navigate = useNavigate();
+    const timerRef = useRef<number | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
     const [_liveTranscript, setLiveTranscript] = useState<string>("");
-    const recognitionRef = useRef<any>(null); // dùng any nếu TS báo lỗi SpeechRecognition
-    const [_recordingStartTime, setRecordingStartTime] = useState<number | null>(null)
-    const [isGrading, setIsGrading] = useState(false); // Thêm state loading overlay
-    const [submittedResult, setSubmittedResult] = useState<any>(null);
-    const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const [_recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
+    const [isGrading, setIsGrading] = useState(false);
     const [totalRecordingTime, setTotalRecordingTime] = useState<{ [key in Part]: number }>({
         part1: 0,
         part2: 0,
         part3: 0,
-    })
-    const [recordingTimes, setRecordingTimes] = useState<{ [key: string]: number }>({})
-    const [part2Countdown, setPart2Countdown] = useState(10)
-    const [part2Prep, setPart2Prep] = useState(false)
-    const [testTimeLeft, setTestTimeLeft] = useState(TOTAL_TEST_TIME)
-    const testTimerRef = useRef<number | null>(null)
-    const [showMinRecordingWarning, setShowMinRecordingWarning] = useState(false)
-    const [minRecordingWarningMsg, setMinRecordingWarningMsg] = useState("")
+    });
+    const [recordingTimes, setRecordingTimes] = useState<{ [key: string]: number }>({});
+    const [part2Countdown, setPart2Countdown] = useState(10);
+    const [part2Prep, setPart2Prep] = useState(false);
+    const [testTimeLeft, setTestTimeLeft] = useState(TOTAL_TEST_TIME);
+    const testTimerRef = useRef<number | null>(null);
+    const [showMinRecordingWarning, setShowMinRecordingWarning] = useState(false);
+    const [minRecordingWarningMsg, setMinRecordingWarningMsg] = useState("");
 
     const MIN_RECORDING_TIMES = {
         part1: 1,
         part2: 1,
         part3: 1,
-    }
+    };
 
-    // Thêm hàm đếm số câu part1 đã ghi âm
     const countAnsweredPart1 = () => {
         if (!speaking) return 0;
         return speaking.part1.questions.reduce((count, _q, i) => {
@@ -108,7 +89,7 @@ const SpeakingTest = () => {
             return audioUrls[key] ? count + 1 : count;
         }, 0);
     };
-    // Thêm hàm đếm số câu part3 đã ghi âm
+
     const countAnsweredPart3 = () => {
         if (!speaking) return 0;
         return speaking.part3.questions.reduce((count, _q, i) => {
@@ -120,46 +101,42 @@ const SpeakingTest = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await customFetch(`${API_URL}/verify/speaking/${testId}`, {
-                    method: "GET",
-                })
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-                const data = await res.json()
-                setSpeaking(data)
+                if (!testId) return;
+                const data = await apiClient.get<Speaking>(`/tests/${testId}/speaking`);
+                setSpeaking(data);
             } catch (err) {
-                console.error("Failed to fetch speaking test:", err)
+                console.error("Failed to fetch speaking test:", err);
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }
-        fetchData()
+        };
+        fetchData();
 
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current)
-        }
-    }, [testId])
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [testId]);
 
     useEffect(() => {
         if (currentPart === "part2" && !partStarted && !part2Prep) {
-            setPart2Prep(true)
-            setPart2Countdown(60)
+            setPart2Prep(true);
+            setPart2Countdown(60);
         }
-    }, [currentPart, partStarted])
+    }, [currentPart, partStarted]);
 
     useEffect(() => {
         if (part2Prep && part2Countdown > 0) {
             const interval = setInterval(() => {
-                setPart2Countdown((prev) => prev - 1)
-            }, 1000)
-            return () => clearInterval(interval)
+                setPart2Countdown((prev) => prev - 1);
+            }, 1000);
+            return () => clearInterval(interval);
         } else if (part2Prep && part2Countdown === 0) {
-            setPart2Prep(false)
-            setPartStarted(true)
+            setPart2Prep(false);
+            setPartStarted(true);
         }
-    }, [part2Prep, part2Countdown])
+    }, [part2Prep, part2Countdown]);
 
     useEffect(() => {
-        // Tự động bắt đầu part1 và part3 khi vào, chỉ part2 mới cần bấm Start
         if (
             !loading &&
             speaking &&
@@ -167,13 +144,11 @@ const SpeakingTest = () => {
             !showConfirmNextPart &&
             (currentPart === "part1" || currentPart === "part3")
         ) {
-            startTimer()
+            startTimer();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loading, speaking, currentPart, showConfirmNextPart])
+    }, [loading, speaking, currentPart, showConfirmNextPart]);
 
     useEffect(() => {
-        // Đảm bảo chỉ có 1 interval duy nhất
         if (partStarted) {
             if (testTimerRef.current) {
                 clearInterval(testTimerRef.current);
@@ -186,9 +161,8 @@ const SpeakingTest = () => {
                             clearInterval(testTimerRef.current);
                             testTimerRef.current = null;
                         }
-                        setIsSubmitting(true)
-                        setTimeUp(true)
-                        // Kiểm tra điều kiện tối thiểu khi hết giờ
+                        setIsSubmitting(true);
+                        setTimeUp(true);
                         const answeredPart1 = countAnsweredPart1();
                         const answeredPart2 = audioUrls["part2"] ? 1 : 0;
                         const answeredPart3 = countAnsweredPart3();
@@ -204,7 +178,6 @@ const SpeakingTest = () => {
                             navigate("/", { replace: true });
                             return 0;
                         } else {
-                            // Đủ điều kiện, tự động nộp bài
                             handleSubmitClick();
                             return 0;
                         }
@@ -222,93 +195,93 @@ const SpeakingTest = () => {
     }, [partStarted]);
 
     const startTimer = () => {
-        if (testTimerRef.current) return
-        setPartStarted(true)
-        setTimeUp(false)
-    }
+        if (testTimerRef.current) return;
+        setPartStarted(true);
+        setTimeUp(false);
+    };
 
     const startThinking = (seconds: number, callback: () => void) => {
-        setThinkingTime(seconds)
-        setIsThinking(true)
+        setThinkingTime(seconds);
+        setIsThinking(true);
         const interval = setInterval(() => {
             setThinkingTime((prev) => {
                 if (prev <= 1) {
-                    clearInterval(interval)
-                    setIsThinking(false)
-                    callback()
-                    return 0
+                    clearInterval(interval);
+                    setIsThinking(false);
+                    callback();
+                    return 0;
                 }
-                return prev - 1
-            })
-        }, 1000)
-    }
+                return prev - 1;
+            });
+        }, 1000);
+    };
 
     const startRecording = async (key: string) => {
-        if (!partStarted) startTimer()
+        if (!partStarted) startTimer();
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream, {
                 mimeType: "audio/webm",
-            })
+            });
 
-            mediaRecorderRef.current = mediaRecorder
-            audioChunksRef.current = []
-            setRecordingKey(key)
-            setRecordingStartTime(Date.now())
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+            setRecordingKey(key);
+            setRecordingStartTime(Date.now());
 
             mediaRecorder.ondataavailable = (e: BlobEvent) => {
                 if (e.data && e.data.size > 0) {
-                    audioChunksRef.current.push(e.data)
+                    audioChunksRef.current.push(e.data);
                 }
-            }
+            };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-                const url = URL.createObjectURL(audioBlob)
+                const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                const url = URL.createObjectURL(audioBlob);
 
-                const audioContext = new AudioContext()
-                const reader = new FileReader()
+                const audioContext = new AudioContext();
+                const reader = new FileReader();
 
                 reader.onload = async () => {
-                    const arrayBuffer = reader.result as ArrayBuffer
+                    const arrayBuffer = reader.result as ArrayBuffer;
                     try {
-                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-                        const realDuration = Math.floor(audioBuffer.duration)
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        const realDuration = Math.floor(audioBuffer.duration);
 
                         setRecordingTimes((prev) => ({
                             ...prev,
                             [key]: realDuration,
-                        }))
+                        }));
 
                         setTotalRecordingTime((prev) => {
-                            const part = key.startsWith("part1") ? "part1" : key.startsWith("part2") ? "part2" : "part3"
-                            const prevDuration = recordingTimes[key] || 0
-                            const newTotal = prev[part] - prevDuration + realDuration
+                            const part = key.startsWith("part1") ? "part1" : key.startsWith("part2") ? "part2" : "part3";
+                            const prevDuration = recordingTimes[key] || 0;
+                            const newTotal = prev[part] - prevDuration + realDuration;
 
                             return {
                                 ...prev,
                                 [part]: newTotal,
-                            }
-                        })
+                            };
+                        });
 
-                        setAudioUrls((prev) => ({ ...prev, [key]: url }))
-                        setRecordingKey(null)
-                        setRecordingStartTime(null)
+                        setAudioUrls((prev) => ({ ...prev, [key]: url }));
+                        setRecordingKey(null);
+                        setRecordingStartTime(null);
                     } catch (error) {
-                        console.error("Error decoding audio:", error)
+                        console.error("Error decoding audio:", error);
                     }
-                }
+                };
 
-                reader.readAsArrayBuffer(audioBlob)
-            }
+                reader.readAsArrayBuffer(audioBlob);
+            };
 
-            mediaRecorder.start()
+            mediaRecorder.start();
         } catch (error) {
-            console.error("Error accessing microphone:", error)
-            alert("Cannot access microphone. Please check your browser or allow microphone access.")
+            console.error("Error accessing microphone:", error);
+            alert("Cannot access microphone. Please check your browser or allow microphone access.");
         }
-    }
+    };
 
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
@@ -320,38 +293,37 @@ const SpeakingTest = () => {
             recognitionRef.current = null;
         }
 
-        setLiveTranscript(""); // Xoá transcript hiển thị
+        setLiveTranscript("");
     };
 
     const nextQuestion = async () => {
-        if (timeUp) return // Kiểm tra hết giờ tổng trước
-        if (!speaking || (currentPart === "part3" && timeUp)) return
+        if (timeUp) return;
+        if (!speaking || (currentPart === "part3" && timeUp)) return;
         if (recordingKey) {
-            stopRecording()
+            stopRecording();
             await new Promise((resolve) => {
                 const check = () => {
-                    if (!recordingKey) resolve(true)
-                    else setTimeout(check, 100)
-                }
-                check()
-            })
+                    if (!recordingKey) resolve(true);
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
         }
-        const questions = currentPart === "part1" ? speaking.part1.questions : speaking.part3.questions
+        const questions = currentPart === "part1" ? speaking.part1.questions : speaking.part3.questions;
         if (currentPart === "part2") {
             if (totalRecordingTime.part2 >= MIN_RECORDING_TIMES.part2) {
-                setShowConfirmNextPart(true)
+                setShowConfirmNextPart(true);
             } else {
                 setMinRecordingWarningMsg(
                     `Bạn cần ghi âm ít nhất ${MIN_RECORDING_TIMES.part2} giây cho Part 2 trước khi tiếp tục. Hiện tại: ${Math.floor(totalRecordingTime.part2)} giây`,
-                )
-                setShowMinRecordingWarning(true)
+                );
+                setShowMinRecordingWarning(true);
             }
-            return
+            return;
         }
         if (currentQuestionIndex < questions.length - 1) {
-            setCurrentQuestionIndex((prev) => prev + 1)
+            setCurrentQuestionIndex((prev) => prev + 1);
         } else {
-            // BẮT BUỘC PART1 PHẢI TRẢ LỜI ÍT NHẤT 2 CÂU HỎI
             if (currentPart === "part1") {
                 const answered = countAnsweredPart1();
                 if (answered < 2) {
@@ -363,7 +335,6 @@ const SpeakingTest = () => {
                     return;
                 }
             }
-            // BẮT BUỘC PART3 PHẢI TRẢ LỜI ÍT NHẤT 3 CÂU HỎI
             if (currentPart === "part3") {
                 const answered = countAnsweredPart3();
                 if (answered < 3) {
@@ -375,85 +346,82 @@ const SpeakingTest = () => {
                     return;
                 }
             }
-            const currentTotal = totalRecordingTime[currentPart]
+            const currentTotal = totalRecordingTime[currentPart];
             if (currentTotal >= MIN_RECORDING_TIMES[currentPart]) {
                 if (currentPart === "part3") {
-                    setIsSubmitting(true)
+                    setIsSubmitting(true);
                 } else {
-                    setShowConfirmNextPart(true)
+                    setShowConfirmNextPart(true);
                 }
             } else {
                 setMinRecordingWarningMsg(
                     `Bạn cần ghi âm tổng cộng ít nhất ${MIN_RECORDING_TIMES[currentPart]} giây cho ${currentPart.toUpperCase()} trước khi tiếp tục. Hiện tại: ${Math.floor(currentTotal)} giây`,
-                )
-                setShowMinRecordingWarning(true)
-                setCurrentQuestionIndex(0)
+                );
+                setShowMinRecordingWarning(true);
+                setCurrentQuestionIndex(0);
             }
         }
-    }
+    };
 
     const goToNextPart = async () => {
-        setPartStarted(false)
-        setShowConfirmNextPart(false)
-        setCurrentQuestionIndex(0)
+        setPartStarted(false);
+        setShowConfirmNextPart(false);
+        setCurrentQuestionIndex(0);
         if (currentPart === "part1") {
-            setCurrentPart("part2")
-            setPart2Prep(true)
-            setPart2Countdown(10)
+            setCurrentPart("part2");
+            setPart2Prep(true);
+            setPart2Countdown(10);
         } else if (currentPart === "part2") {
-            setCurrentPart("part3")
-            setPart2Prep(false)
-            setPartStarted(true)
+            setCurrentPart("part3");
+            setPart2Prep(false);
+            setPartStarted(true);
         }
-    }
+    };
 
     const prepareSubmissionData = () => {
-        const cloned = JSON.parse(JSON.stringify(speaking))
-        if (user && "username" in user) cloned.username = user.username
-        cloned.skill = "speaking"
+        const cloned = JSON.parse(JSON.stringify(speaking));
+        if (user && "username" in user) cloned.username = user.username;
+        cloned.skill = "speaking";
 
         cloned.part1.questions = cloned.part1.questions.map((q: any, i: number) => ({
             question: q.question,
             audioAnswer: audioUrls[`part1-${i + 1}`] ? `part1-${i + 1}.webm` : "",
             duration: recordingTimes[`part1-${i + 1}`] || 0,
-        }))
+        }));
 
-        cloned.part2.audioAnswer = audioUrls["part2"] ? "part2.webm" : ""
+        cloned.part2.audioAnswer = audioUrls["part2"] ? "part2.webm" : "";
         if (speaking) {
             cloned.part2.cueCards = speaking.part2.cueCards;
         }
-        cloned.part2.duration = recordingTimes["part2"] || 0
+        cloned.part2.duration = recordingTimes["part2"] || 0;
 
         cloned.part3.questions = cloned.part3.questions.map((q: any, i: number) => ({
             question: q.question,
             audioAnswer: audioUrls[`part3-${i + 1}`] ? `part3-${i + 1}.webm` : "",
             duration: recordingTimes[`part3-${i + 1}`] || 0,
-        }))
-        return cloned
-    }
+        }));
+        return cloned;
+    };
 
     const handleSubmitClick = async () => {
-        // Dừng timer khi bắt đầu submit
         if (recordingKey) {
-            stopRecording()
+            stopRecording();
             await new Promise((resolve) => {
                 const check = () => {
-                    if (!recordingKey) resolve(true)
-                    else setTimeout(check, 100)
-                }
-                check()
-            })
+                    if (!recordingKey) resolve(true);
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
         }
 
-        // Kiểm tra điều kiện tối thiểu trước khi submit
         if (!timeUp && totalRecordingTime.part3 < MIN_RECORDING_TIMES.part3) {
             setMinRecordingWarningMsg(
                 `You need to record at least ${MIN_RECORDING_TIMES.part3} seconds for PART 3 before submitting. Current duration: ${Math.floor(totalRecordingTime.part3)} seconds.`,
             );
             setShowMinRecordingWarning(true);
-            return; // Dừng lại nếu không đủ điều kiện
+            return;
         }
-        // BẮT BUỘC PART3 PHẢI TRẢ LỜI ÍT NHẤT 3 CÂU HỎI
         const answeredPart3 = countAnsweredPart3();
         if (answeredPart3 < 3) {
             setMinRecordingWarningMsg(
@@ -463,82 +431,70 @@ const SpeakingTest = () => {
             return;
         }
 
-        // Gọi submit trực tiếp (không hiển thị dialog)
         handleSubmit();
-    }
+    };
 
     const handleSubmit = async () => {
-        // Dừng timer khi thực sự submit (phòng trường hợp gọi trực tiếp)
         setIsGrading(true);
-        setIsSubmitting(true); // Bây giờ mới set submitting
-        // setIsGrading(true); // Bắt đầu overlay loading
-        const submissionData = prepareSubmissionData()
-        if (!submissionData) return
-        const formData = new FormData()
+        setIsSubmitting(true);
+        const submissionData = prepareSubmissionData();
+        if (!submissionData) return;
+        const formData = new FormData();
         formData.append(
             "metadata",
             new Blob([JSON.stringify(submissionData)], { type: "application/json" }),
             "metadata.json",
-        )
+        );
         await Promise.all(
             Object.entries(audioUrls).map(async ([key, url]) => {
-                const blob = await fetch(url).then((res) => res.blob())
-                formData.append("files", blob, `${key}.webm`)
+                const blob = await fetch(url).then((res) => res.blob());
+                formData.append("files", blob, `${key}.webm`);
             }),
-        )
+        );
         try {
-            let res;
-            if (testAnswerId) {
-                res = await customFetch(`${API_URL}/verify/speaking/submit?testAnswerId=${testAnswerId}`, {
-                    method: "POST",
-                    body: formData,
-                });
-            } else {
-                res = await customFetch(`${API_URL}/verify/speaking/submit`, {
-                    method: "POST",
-                    body: formData,
-                });
-            }
-            if (!res.ok) throw new Error("Fail to submit!");
-            const result = await res.json();
+            const url = testAnswerId ? `/test-answers/speaking?testAnswerId=${testAnswerId}` : `/test-answers/speaking`;
+            const result: any = await apiClient.post(url, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
             setIsGrading(false);
             if (mode === "fulltest") {
                 navigate(`/test/fulltest-result/${testAnswerId}`);
             } else {
-                navigate(`/speaking-result/${result.id}`);
-                alert("Your essay has been graded by AI! Your essay has been submitted successfully!");
+                const resId = result?.id || result?._id;
+                navigate(`/speaking-result/${resId}`);
+                alert("Your speaking test has been submitted successfully!");
             }
         } catch (err) {
-            console.error(err)
+            console.error(err);
             setIsGrading(false);
-            alert("Submission failed!")
+            alert("Submission failed!");
         }
-        setIsSubmitting(false)
-    }
+        setIsSubmitting(false);
+    };
 
     const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60)
-        const secs = seconds % 60
-        return `${mins}:${secs.toString().padStart(2, "0")}`
-    }
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+    };
 
     const getCurrentQuestionKey = () => {
-        if (currentPart === "part1") return `part1-${currentQuestionIndex + 1}`
-        if (currentPart === "part2") return "part2"
-        return `part3-${currentQuestionIndex + 1}`
-    }
+        if (currentPart === "part1") return `part1-${currentQuestionIndex + 1}`;
+        if (currentPart === "part2") return "part2";
+        return `part3-${currentQuestionIndex + 1}`;
+    };
 
     const getCurrentQuestion = () => {
-        if (!speaking) return ""
-        if (currentPart === "part1") return speaking.part1.questions[currentQuestionIndex].question
-        if (currentPart === "part2") return speaking.part2.question
-        return speaking.part3.questions[currentQuestionIndex].question
-    }
+        if (!speaking) return "";
+        if (currentPart === "part1") return speaking.part1.questions[currentQuestionIndex].question;
+        if (currentPart === "part2") return speaking.part2.question;
+        return speaking.part3.questions[currentQuestionIndex].question;
+    };
 
     const getQuestionNumber = () => {
-        if (currentPart === "part2") return ""
-        return currentQuestionIndex + 1
-    }
+        if (currentPart === "part2") return "";
+        return currentQuestionIndex + 1;
+    };
 
     if (loading) {
         return (
@@ -548,7 +504,7 @@ const SpeakingTest = () => {
                     <p className="text-gray-600 text-sm">Loading your speaking test...</p>
                 </div>
             </div>
-        )
+        );
     }
 
     if (!speaking) {
@@ -559,7 +515,7 @@ const SpeakingTest = () => {
                     <AlertDescription>No test data found. Please try again.</AlertDescription>
                 </Alert>
             </div>
-        )
+        );
     }
 
     if (!partStarted && !showConfirmNextPart) {
@@ -606,13 +562,10 @@ const SpeakingTest = () => {
                         </Card>
                     </div>
                 </div>
-            )
+            );
         }
-        return null
+        return null;
     }
-
-    // Show submission confirmation
-
 
     if (showConfirmNextPart) {
         return (
@@ -650,7 +603,7 @@ const SpeakingTest = () => {
                     </CardContent>
                 </Card>
             </div>
-        )
+        );
     }
 
     if (showMinRecordingWarning) {
@@ -679,12 +632,11 @@ const SpeakingTest = () => {
                     </CardContent>
                 </Card>
             </div>
-        )
+        );
     }
 
     return (
         <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
-            {/* Overlay loading khi đang chấm điểm AI */}
             {isGrading && (
                 <div
                     style={{
@@ -704,25 +656,20 @@ const SpeakingTest = () => {
                     </div>
                 </div>
             )}
-            {/* Compact Header */}
             <div className="flex-shrink-0">
                 <DoTestSpeakingHeader initialTime={testTimeLeft} />
             </div>
-            {/* Dialog chọn phương thức chấm bài */}
-            {/*/!* Part Header - Compact *!/*/}
             <div className="max-w-6xl mx-auto">
-                <div className="">
+                <div>
                     <div className="text-lg font-bold text-emerald-700">
                         Part {speaking[currentPart].partNumber}: {speaking[currentPart].title}
                     </div>
                 </div>
             </div>
 
-            {/* Main Content - Flexible */}
             <div className="flex-1 overflow-hidden">
                 <div className="max-w-6xl mx-auto px-4 py-2 h-100">
                     <div className="grid lg:grid-cols-3 gap-3 h-100">
-                        {/* Main Question Area */}
                         <div className="lg:col-span-2">
                             <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm h-full">
                                 <CardContent className="p-6 flex flex-col items-center justify-center space-y-4 h-full">
@@ -734,16 +681,15 @@ const SpeakingTest = () => {
 
                                     <h2 className="text-xl font-bold text-gray-900 leading-tight text-center">{getCurrentQuestion()}</h2>
 
-                                    {/* Compact Microphone Button */}
                                     <div className="py-2 w-full flex justify-center items-center">
                                         <div className="relative">
                                             <button
                                                 onClick={() => {
-                                                    const key = getCurrentQuestionKey()
+                                                    const key = getCurrentQuestionKey();
                                                     if (recordingKey === key) {
-                                                        stopRecording()
+                                                        stopRecording();
                                                     } else {
-                                                        startThinking(currentPart === "part2" ? 1 : 1, () => startRecording(key))
+                                                        startThinking(currentPart === "part2" ? 1 : 1, () => startRecording(key));
                                                     }
                                                 }}
                                                 disabled={isThinking || (currentPart === "part3" && timeUp)}
@@ -771,7 +717,6 @@ const SpeakingTest = () => {
                                         </div>
                                     </div>
 
-                                    {/* Status Text */}
                                     <div className="text-xs">
                                         {isThinking ? (
                                             <p className="text-orange-600 font-semibold animate-pulse">
@@ -782,16 +727,12 @@ const SpeakingTest = () => {
                                         ) : (
                                             <p className="text-gray-600">⏱️ You have {formatTime(testTimeLeft)} minutes to speak</p>
                                         )}
-
                                     </div>
-
                                 </CardContent>
                             </Card>
                         </div>
 
-                        {/* Compact Sidebar */}
                         <div className="space-y-2 h-100 overflow-y-auto">
-                            {/* Recording Stats */}
                             <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
                                 <CardContent className="p-2">
                                     <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-1 text-xs">
@@ -803,21 +744,20 @@ const SpeakingTest = () => {
                                             <div className="flex justify-between items-center p-2 bg-green-50 rounded-lg text-xs">
                                                 <span className="text-xs text-gray-600">Current Question</span>
                                                 <span className="font-semibold text-green-600 text-xs">
-                          {Math.floor(recordingTimes[getCurrentQuestionKey()])}s
-                        </span>
+                                                    {Math.floor(recordingTimes[getCurrentQuestionKey()])}s
+                                                </span>
                                             </div>
                                         )}
                                         <div className="flex justify-between items-center p-2 bg-blue-50 rounded-lg">
                                             <span className="text-xs text-gray-600">Total {currentPart.toUpperCase()}</span>
                                             <span className="font-semibold text-blue-600 text-xs">
-                        {Math.floor(totalRecordingTime[currentPart])} / {MIN_RECORDING_TIMES[currentPart]}s
-                      </span>
+                                                {Math.floor(totalRecordingTime[currentPart])} / {MIN_RECORDING_TIMES[currentPart]}s
+                                            </span>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            {/* Audio Playback */}
                             {audioUrls[getCurrentQuestionKey()] && (
                                 <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-emerald-50">
                                     <CardContent className="p-2">
@@ -830,14 +770,13 @@ const SpeakingTest = () => {
                                 </Card>
                             )}
 
-                            {/* Progress Info */}
                             <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
                                 <CardContent className="p-1">
                                     <h3 className="font-bold text-gray-900 mb-3 text-xs">Progress</h3>
                                     <div className="space-y-2">
                                         <div className="text-xs text-gray-600">
                                             {currentPart === "part1" &&
-                                                `Q${currentQuestionIndex + 1}/${speaking.part1.questions.length}`} {/* Rút gọn text */}
+                                                `Q${currentQuestionIndex + 1}/${speaking.part1.questions.length}`}
                                             {currentPart === "part2" && "Long turn (1-2 mins)"}
                                             {currentPart === "part3" &&
                                                 `Q${currentQuestionIndex + 1}/${speaking.part3.questions.length}`}
@@ -864,7 +803,6 @@ const SpeakingTest = () => {
                 </div>
             </div>
 
-            {/* Navigation Buttons - Fixed at bottom */}
             <div className="flex-shrink-0 bg-white border-t p-3">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -909,7 +847,6 @@ const SpeakingTest = () => {
                         {currentPart !== "part3" && (
                             <Button
                                 onClick={() => {
-                                    // BẮT BUỘC PART1 PHẢI TRẢ LỜI ÍT NHẤT 2 CÂU HỎI
                                     if (currentPart === "part1") {
                                         const answered = countAnsweredPart1();
                                         if (answered < 2) {
@@ -918,11 +855,11 @@ const SpeakingTest = () => {
                                         }
                                     }
                                     if (totalRecordingTime[currentPart] >= MIN_RECORDING_TIMES[currentPart]) {
-                                        setShowConfirmNextPart(true)
+                                        setShowConfirmNextPart(true);
                                     } else {
                                         alert(
                                             `Bạn cần ghi âm tổng cộng ít nhất ${MIN_RECORDING_TIMES[currentPart]} giây cho ${currentPart.toUpperCase()} trước khi tiếp tục. Hiện tại: ${Math.floor(totalRecordingTime[currentPart])} giây`,
-                                        )
+                                        );
                                     }
                                 }}
                                 variant="outline"
@@ -938,7 +875,7 @@ const SpeakingTest = () => {
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default SpeakingTest
+export default SpeakingTest;

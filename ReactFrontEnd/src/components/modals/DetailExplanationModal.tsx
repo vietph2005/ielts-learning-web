@@ -1,10 +1,8 @@
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 import React, { useEffect, useState } from "react";
 import { X, CheckCircle, XCircle, BookOpen, Headphones, Volume2, FileText, Mic, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-
 
 interface DetailExplanationModalProps {
   isOpen: boolean;
@@ -41,29 +39,25 @@ export const DetailExplanationModal: React.FC<DetailExplanationModalProps> = ({
     let url = "";
     const lowerSkill = skill.toLowerCase();
     if (lowerSkill === "listening") {
-      url = `${API_URL}/api/result/listening/by-id?answerId=${resultId}`;
+      url = `/test-results/listening/${resultId}`;
     } else if (lowerSkill === "reading") {
-      url = `${API_URL}/api/result/reading/by-id?answerId=${resultId}`;
+      url = `/test-results/reading/${resultId}`;
     } else if (lowerSkill === "writing") {
-      url = `${API_URL}/api/result/${resultId}`;
+      url = `/test-results/writing/${resultId}`;
     } else if (lowerSkill === "speaking") {
-      url = `${API_URL}/api/result/speaking/${resultId}`;
+      url = `/test-results/speaking/${resultId}`;
     } else if (lowerSkill === "fulltest") {
-      url = `${API_URL}/api/result/fulltest/${resultId}`;
+      url = `/test-results/full-tests/${resultId}`;
     } else {
-      url = `${API_URL}/api/result/${resultId}`;
+      url = `/test-results/writing/${resultId}`;
     }
 
-    fetch(url, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Không thể tải chi tiết kết quả.");
-        return res.json();
-      })
+    apiClient.get<any>(url)
       .then((json) => {
         setData(json);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         setError(err.message || "Lỗi khi nạp dữ liệu.");
         setLoading(false);
       });

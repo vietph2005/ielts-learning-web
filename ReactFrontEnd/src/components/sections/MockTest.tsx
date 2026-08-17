@@ -1,4 +1,4 @@
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen } from 'lucide-react';
@@ -20,9 +20,6 @@ interface MockTestProps {
     selectedSkill: 'Listening' | 'Reading' | 'Writing' | 'Speaking' | 'All Skills';
 }
 
-
-
-// Sử dụng function component bình thường
 function MockTest({ selectedSkill = 'All Skills' }: MockTestProps) {
     const [testsByYear, setTestsByYear] = useState<TestsByYear>({});
     const [loading, setLoading] = useState(true);
@@ -34,27 +31,11 @@ function MockTest({ selectedSkill = 'All Skills' }: MockTestProps) {
             try {
                 setLoading(true);
                 setError(null);
-                const endpoint =
-                    selectedSkill === 'All Skills'
-                        ? '/api/test/all-skill'
-                        : `/api/test/${selectedSkill.toLowerCase()}`;
-
-                const response = await fetch(`${API_URL}${endpoint}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
+                const skillParam = selectedSkill === 'All Skills' ? 'all' : selectedSkill.toLowerCase();
+                const data = await apiClient.get<Record<string, ListTest[]>>(`/tests/grouped?skill=${skillParam}`);
 
                 const transformedData: TestsByYear = {};
-                if (Array.isArray(data)) {
-                    data.forEach((test: ListTest) => {
-                        const year = test.year.toString();
-                        if (!transformedData[year]) {
-                            transformedData[year] = [];
-                        }
-                        transformedData[year].push(test);
-                    });
-                } else if (typeof data === 'object') {
+                if (data && typeof data === 'object') {
                     Object.entries(data).forEach(([year, tests]) => {
                         if (Array.isArray(tests)) {
                             transformedData[year] = tests;
@@ -82,7 +63,6 @@ function MockTest({ selectedSkill = 'All Skills' }: MockTestProps) {
     };
 
     const handleStartTest = (testId: string): void => {
-
         const skill = selectedSkill === 'All Skills' ? 'full' : selectedSkill.toLowerCase();
         navigate(`/test/${skill}/${testId}`);
     };

@@ -1,5 +1,5 @@
 "use client"
-import { API_URL } from "@/config/api";
+import apiClient from "@/lib/apiClient";
 
 import { useEffect, useState } from "react"
 import {
@@ -187,11 +187,8 @@ export default function SpeakingResult() {
     const { resultId } = useParams<{ resultId: string }>();
 
     useEffect(() => {
-        fetch(`${API_URL}/api/result/speaking/${resultId}`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to fetch data");
-                return res.json();
-            })
+        if (!resultId) return;
+        apiClient.get<SpeakingAnswer>(`/test-results/speaking/${resultId}`)
             .then(json => setData(json))
             .catch(err => console.error("Fetch error:", err))
             .finally(() => setLoading(false));

@@ -1,11 +1,11 @@
-import { API_URL } from "@/config/api";
-import { useEffect, useState } from "react"
-import { ChevronDown, ChevronUp, Award, FileText, MessageSquare, BookOpen, Target, Zap } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Badge } from "@/components/ui/badge"
-import {useNavigate, useParams} from "react-router-dom";
+import apiClient from "@/lib/apiClient";
+import React, { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, Award, FileText, MessageSquare, BookOpen, Target, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { useNavigate, useParams } from "react-router-dom";
 import { DetailExplanationModal } from "@/components/modals/DetailExplanationModal";
 
 interface Review {
@@ -34,7 +34,6 @@ interface ErrorCorrection {
     sentenceContext: string;
 }
 
-
 interface SentenceImprovement {
     originalSentence: string;
     improvedSentence: string;
@@ -62,36 +61,32 @@ interface TaskWritingAnswer {
     sampleAnswer: string;
 }
 
-
-
 export default function WritingResult() {
     const [data, setData] = useState<WritingAnswer | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTask, setActiveTask] = useState<"task1" | "task2">("task1")
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const navigate = useNavigate()
+    const [activeTask, setActiveTask] = useState<"task1" | "task2">("task1");
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const navigate = useNavigate();
     const [openSections, setOpenSections] = useState<{
-        question: boolean
-        review: boolean
-        scoring: boolean
-        sample: boolean
+        question: boolean;
+        review: boolean;
+        scoring: boolean;
+        sample: boolean;
     }>({
         question: false,
         review: true,
         scoring: false,
         sample: false,
-    })
-    const { resultId } = useParams  <{ resultId: string }>();
+    });
+    const { resultId } = useParams<{ resultId: string }>();
 
-    const [feedbackView, setFeedbackView] = useState<"errors" | "improvements">("errors")
+    const [feedbackView, setFeedbackView] = useState<"errors" | "improvements">("errors");
+
     useEffect(() => {
-        fetch(`${API_URL}/api/result/${resultId}`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to fetch data");
-                return res.json();
-            })
-            .then(json => setData(json))
-            .catch(err => console.error("Fetch error:", err))
+        if (!resultId) return;
+        apiClient.get<WritingAnswer>(`/test-results/writing/${resultId}`)
+            .then((json) => setData(json))
+            .catch((err) => console.error("Fetch error:", err))
             .finally(() => setLoading(false));
     }, [resultId]);
 
@@ -103,7 +98,7 @@ export default function WritingResult() {
                     <p className="text-slate-600 font-medium">Loading your results...</p>
                 </div>
             </div>
-        )
+        );
     }
 
     if (!data) {
@@ -116,30 +111,26 @@ export default function WritingResult() {
                     </CardContent>
                 </Card>
             </div>
-        )
+        );
     }
 
     const getScoreColor = (score: string) => {
-        const numScore = Number.parseFloat(score)
-        if (numScore >= 7.0) return "text-emerald-600 bg-emerald-100"
-        if (numScore >= 6.0) return "text-amber-600 bg-amber-100"
-        return "text-red-600 bg-red-100"
-    }
+        const numScore = Number.parseFloat(score);
+        if (numScore >= 7.0) return "text-emerald-600 bg-emerald-100";
+        if (numScore >= 6.0) return "text-amber-600 bg-amber-100";
+        return "text-red-600 bg-red-100";
+    };
 
     const calculateOverallScore = () => {
         const task1Score = data.task1 && data.task1.score ? Number.parseFloat(data.task1.score) : 0;
         const task2Score = data.task2 && data.task2.score ? Number.parseFloat(data.task2.score) : 0;
-        // Nếu cả hai task đều không có thì trả về "_"
         if (!data.task1 && !data.task2) return "_";
-        // Nếu chỉ có 1 task thì lấy điểm task đó
         if (!data.task1) return roundIeltsScore(task2Score);
         if (!data.task2) return roundIeltsScore(task1Score);
-        // Nếu có cả hai thì tính bình thường
         const avg = (task1Score + task2Score * 2) / 3;
         return roundIeltsScore(avg);
-    }
+    };
 
-    // Quy tắc làm tròn điểm IELTS
     function roundIeltsScore(score: number) {
         const decimal = score - Math.floor(score);
         let rounded;
@@ -150,12 +141,11 @@ export default function WritingResult() {
         } else {
             rounded = Math.ceil(score);
         }
-        // Đảm bảo luôn có 1 số thập phân
         return rounded.toFixed(1);
     }
 
     const overallScore = calculateOverallScore();
-    // Highlight errors by matching originalText only in the correct sentenceContext
+
     const renderTextWithCorrectionsBySentenceContext = (answer: string, corrections: ErrorCorrection[]) => {
         if (!corrections || corrections.length === 0) {
             return (
@@ -171,29 +161,22 @@ export default function WritingResult() {
                         </div>
                     </div>
                 </div>
-            )
+            );
         }
 
-        // Tạo mảng các câu trong answer
         const sentences = answer.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [answer];
-        // Đánh dấu các câu đã được sửa
         const sentenceUsed: Record<number, boolean> = {};
-        // Tạo bản sao sentences để highlight
         let highlightedSentences: React.ReactNode[] = [...sentences];
         corrections.forEach((correction, idx) => {
-            // Tìm index của câu context trong bài (ưu tiên lần đầu tiên)
-            const contextIdx = sentences.findIndex((s, i) => !sentenceUsed[i] && s.trim() === correction.sentenceContext.trim());
-            if (contextIdx === -1) return; // Không tìm thấy câu phù hợp
+            const contextIdx = sentences.findIndex((s, i) => !sentenceUsed[i] && s.trim() === correction.sentenceContext?.trim());
+            if (contextIdx === -1) return;
             sentenceUsed[contextIdx] = true;
-            // Tìm vị trí từ cần sửa trong câu
             const context = sentences[contextIdx];
             const wordIdx = context.indexOf(correction.originalText);
             if (wordIdx === -1) return;
-            // Chia câu thành 3 phần: trước, từ lỗi, sau
             const before = context.slice(0, wordIdx);
             const errorWord = context.slice(wordIdx, wordIdx + correction.originalText.length);
             const after = context.slice(wordIdx + correction.originalText.length);
-            // Highlight từ lỗi
             highlightedSentences[contextIdx] = (
                 <span key={`sentence-${idx}`}>
                     {before}
@@ -202,8 +185,7 @@ export default function WritingResult() {
                         title={correction.explanation}
                     >
                         {errorWord}
-                        <span
-                            className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                             {idx + 1}
                         </span>
                     </mark>
@@ -214,7 +196,6 @@ export default function WritingResult() {
 
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Text with highlights */}
                 <div className="lg:col-span-2">
                     <div className="whitespace-pre-line p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
                         <div className="leading-relaxed">
@@ -222,7 +203,6 @@ export default function WritingResult() {
                         </div>
                     </div>
                 </div>
-                {/* Error list */}
                 <div className="lg:col-span-1 space-y-3">
                     <h4 className="font-semibold text-slate-800 mb-3">Error Details</h4>
                     {corrections.map((error, index) => (
@@ -251,7 +231,7 @@ export default function WritingResult() {
                 </div>
             </div>
         );
-    }
+    };
 
     const renderTextWithSentenceImprovementsByContent = (answer: string, improvements: SentenceImprovement[]) => {
         if (!improvements || improvements.length === 0) {
@@ -259,57 +239,56 @@ export default function WritingResult() {
                 <div className="whitespace-pre-line p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
                     <p className="text-slate-700 leading-relaxed">{answer}</p>
                 </div>
-            )
+            );
         }
 
-        let remainingText = answer
-        const elements: React.ReactNode[] = []
+        let remainingText = answer;
+        const elements: React.ReactNode[] = [];
 
         improvements.forEach((improvement, index) => {
-            const sentence = improvement.originalSentence
-            const sentenceIndex = remainingText.indexOf(sentence)
+            const sentence = improvement.originalSentence;
+            const sentenceIndex = remainingText.indexOf(sentence);
 
             if (sentenceIndex !== -1) {
                 if (sentenceIndex > 0) {
                     elements.push(
                         <span key={`text-before-${index}`} className="text-slate-700">
-              {remainingText.slice(0, sentenceIndex)}
-            </span>,
-                    )
+                            {remainingText.slice(0, sentenceIndex)}
+                        </span>,
+                    );
                 }
 
                 elements.push(
                     <mark
                         key={`improve-mark-${index}`}
                         className="bg-amber-100 text-amber-900 font-medium rounded-md px-2 py-1 cursor-help transition-colors hover:bg-amber-200"
-                        title={`Improved: ${improvement.improvedSentence}\nTechniques: ${improvement.techniquesUsed.join(", ")}\nBoost: ${improvement.bandBoost}`}
+                        title={`Improved: ${improvement.improvedSentence}\nTechniques: ${improvement.techniquesUsed?.join(", ")}\nBoost: ${improvement.bandBoost}`}
                     >
                         {sentence}
                     </mark>,
-                )
+                );
 
-                remainingText = remainingText.slice(sentenceIndex + sentence.length)
+                remainingText = remainingText.slice(sentenceIndex + sentence.length);
             }
-        })
+        });
 
         if (remainingText.length > 0) {
             elements.push(
                 <span key="text-final" className="text-slate-700">
-          {remainingText}
-        </span>,
-            )
+                    {remainingText}
+                </span>,
+            );
         }
 
         return (
             <div className="whitespace-pre-line p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
                 <div className="leading-relaxed">{elements}</div>
             </div>
-        )
-    }
+        );
+    };
 
     const renderFeedback = (originalText: string, feedback: Feedback) => (
         <div className="space-y-6">
-            {/* Feedback Navigation */}
             <div className="flex space-x-2 bg-slate-100 p-1 rounded-lg">
                 <button
                     onClick={() => setFeedbackView("errors")}
@@ -319,7 +298,7 @@ export default function WritingResult() {
                 >
                     <Target className="h-4 w-4" />
                     <span>Error Corrections</span>
-                    {feedback.errorCorrections.length > 0 && (
+                    {feedback?.errorCorrections?.length > 0 && (
                         <Badge variant="secondary" className="bg-red-100 text-red-700 ml-1">
                             {feedback.errorCorrections.length}
                         </Badge>
@@ -336,7 +315,7 @@ export default function WritingResult() {
                 >
                     <Zap className="h-4 w-4" />
                     <span>Improvements</span>
-                    {feedback.sentenceImprovements.length > 0 && (
+                    {feedback?.sentenceImprovements?.length > 0 && (
                         <Badge variant="secondary" className="bg-amber-100 text-amber-700 ml-1">
                             {feedback.sentenceImprovements.length}
                         </Badge>
@@ -344,10 +323,9 @@ export default function WritingResult() {
                 </button>
             </div>
 
-            {/* Content based on selected view */}
             {feedbackView === "errors" && (
                 <div className="space-y-4">
-                    {feedback.errorCorrections.length > 0 ? (
+                    {feedback?.errorCorrections && feedback.errorCorrections.length > 0 ? (
                         renderTextWithCorrectionsBySentenceContext(originalText, feedback.errorCorrections)
                     ) : (
                         <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
@@ -362,7 +340,7 @@ export default function WritingResult() {
 
             {feedbackView === "improvements" && (
                 <div className="space-y-4">
-                    {feedback.sentenceImprovements.length > 0 ? (
+                    {feedback?.sentenceImprovements && feedback.sentenceImprovements.length > 0 ? (
                         <>
                             {renderTextWithSentenceImprovementsByContent(originalText, feedback.sentenceImprovements)}
 
@@ -386,7 +364,7 @@ export default function WritingResult() {
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {item.techniquesUsed.map((technique, techIndex) => (
+                                                    {item.techniquesUsed?.map((technique, techIndex) => (
                                                         <Badge key={techIndex} variant="outline" className="text-xs">
                                                             {technique}
                                                         </Badge>
@@ -409,7 +387,6 @@ export default function WritingResult() {
                 </div>
             )}
 
-            {/* Overall Comment - Always visible */}
             <Card className="border-emerald-200 bg-emerald-50/50 mt-6">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-emerald-600">
@@ -418,15 +395,14 @@ export default function WritingResult() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-slate-700 leading-relaxed whitespace-pre-line">{feedback.overallComment}</p>
+                    <p className="text-slate-700 leading-relaxed whitespace-pre-line">{feedback?.overallComment}</p>
                 </CardContent>
             </Card>
         </div>
-    )
+    );
 
     const renderTaskContent = (task: TaskWritingAnswer) => (
         <Card className="overflow-hidden shadow-lg border-0">
-            {/* Question Section */}
             <Collapsible
                 open={openSections.question}
                 onOpenChange={(v) => setOpenSections((prev) => ({ ...prev, question: v }))}
@@ -457,12 +433,12 @@ export default function WritingResult() {
                 </CollapsibleContent>
             </Collapsible>
 
-            {/* Review Section */}
             <Collapsible open={openSections.review} onOpenChange={(v) => setOpenSections((prev) => ({ ...prev, review: v }))}>
                 <CollapsibleTrigger asChild>
                     <Button
                         variant="ghost"
-                        className="w-full justify-between p-6 h-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-none">
+                        className="w-full justify-between p-6 h-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-none"
+                    >
                         <div className="flex items-center gap-3">
                             <Target className="h-5 w-5" />
                             <span className="font-semibold">Detailed Review & Feedback</span>
@@ -484,7 +460,6 @@ export default function WritingResult() {
                 </CollapsibleContent>
             </Collapsible>
 
-            {/* Scoring Breakdown */}
             <Collapsible
                 open={openSections.scoring}
                 onOpenChange={(v) => setOpenSections((prev) => ({ ...prev, scoring: v }))}
@@ -505,57 +480,53 @@ export default function WritingResult() {
                     <div className="p-6 bg-white border-b border-slate-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
-                                {/* Task Achievement */}
                                 <div className="p-3 bg-slate-50 rounded-lg space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-medium text-slate-700">Task Achievement</span>
-                                        <Badge className={getScoreColor(task.evaluation?.TaskAchievement.scoreEva || "0")}>
-                                            {task.evaluation?.TaskAchievement.scoreEva}
+                                        <Badge className={getScoreColor(task.evaluation?.TaskAchievement?.scoreEva || "0")}>
+                                            {task.evaluation?.TaskAchievement?.scoreEva}
                                         </Badge>
                                     </div>
                                     <p className="text-sm text-slate-600 bg-white p-2 rounded border">
-                                        {task.evaluation?.TaskAchievement.reviewEva}
+                                        {task.evaluation?.TaskAchievement?.reviewEva}
                                     </p>
                                 </div>
 
-                                {/* Coherence & Cohesion */}
                                 <div className="p-3 bg-slate-50 rounded-lg space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-medium text-slate-700">Coherence & Cohesion</span>
-                                        <Badge className={getScoreColor(task.evaluation?.CoherenceCohesion.scoreEva || "0")}>
-                                            {task.evaluation?.CoherenceCohesion.scoreEva}
+                                        <Badge className={getScoreColor(task.evaluation?.CoherenceCohesion?.scoreEva || "0")}>
+                                            {task.evaluation?.CoherenceCohesion?.scoreEva}
                                         </Badge>
                                     </div>
                                     <p className="text-sm text-slate-600 bg-white p-2 rounded border">
-                                        {task.evaluation?.CoherenceCohesion.reviewEva}
+                                        {task.evaluation?.CoherenceCohesion?.reviewEva}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                {/* Lexical Resource */}
                                 <div className="p-3 bg-slate-50 rounded-lg space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-medium text-slate-700">Lexical Resource</span>
-                                        <Badge className={getScoreColor(task.evaluation?.LexicalResource.scoreEva || "0")}>
-                                            {task.evaluation?.LexicalResource.scoreEva}
+                                        <Badge className={getScoreColor(task.evaluation?.LexicalResource?.scoreEva || "0")}>
+                                            {task.evaluation?.LexicalResource?.scoreEva}
                                         </Badge>
                                     </div>
                                     <p className="text-sm text-slate-600 bg-white p-2 rounded border">
-                                        {task.evaluation?.LexicalResource.reviewEva}
+                                        {task.evaluation?.LexicalResource?.reviewEva}
                                     </p>
                                 </div>
 
-                                {/* Grammar */}
                                 <div className="p-3 bg-slate-50 rounded-lg space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="font-medium text-slate-700">Grammar</span>
-                                        <Badge className={getScoreColor(task.evaluation?.Grammar.scoreEva || "0")}>
-                                            {task.evaluation?.Grammar.scoreEva}
+                                        <Badge className={getScoreColor(task.evaluation?.Grammar?.scoreEva || "0")}>
+                                            {task.evaluation?.Grammar?.scoreEva}
                                         </Badge>
                                     </div>
                                     <p className="text-sm text-slate-600 bg-white p-2 rounded border">
-                                        {task.evaluation?.Grammar.reviewEva}
+                                        {task.evaluation?.Grammar?.reviewEva}
                                     </p>
                                 </div>
                             </div>
@@ -564,7 +535,6 @@ export default function WritingResult() {
                 </CollapsibleContent>
             </Collapsible>
 
-            {/* Sample Answer */}
             <Collapsible open={openSections.sample} onOpenChange={(v) => setOpenSections((prev) => ({ ...prev, sample: v }))}>
                 <CollapsibleTrigger asChild>
                     <Button
@@ -587,12 +557,11 @@ export default function WritingResult() {
                 </CollapsibleContent>
             </Collapsible>
         </Card>
-    )
+    );
 
-    // =============================================================================================================
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <Button
                     onClick={() => navigate(-1)}
                     variant="outline"
@@ -600,13 +569,7 @@ export default function WritingResult() {
                 >
                     ← Back to Full Test
                 </Button>
-                {/*/!* Header *!/*/}
-                {/*<div className="text-center mb-12">*/}
-                {/*    <h1 className="text-4xl font-bold text-slate-800 mb-4">IELTS Writing Results</h1>*/}
-                {/*    <p className="text-slate-600 text-lg">AI-Powered Evaluation & Feedback</p>*/}
-                {/*</div>*/}
 
-                {/* Score Overview */}
                 <Card className="mb-8 overflow-hidden shadow-2xl border-0 bg-gradient-to-r from-emerald-600 to-emerald-700">
                     <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-8">
                         <div className="text-center mb-8">
@@ -642,7 +605,6 @@ export default function WritingResult() {
                     </div>
                 </Card>
 
-                {/* Task Tabs */}
                 <div className="mb-8">
                     <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl">
                         <button
@@ -683,11 +645,10 @@ export default function WritingResult() {
                     </div>
                 </div>
 
-                {/* Active Task Content */}
                 <div className="space-y-6">
-                  {activeTask === "task1"
-                    ? (data.task1 ? renderTaskContent(data.task1) : <Card className="p-8 text-center">No data for Task 1</Card>)
-                    : (data.task2 ? renderTaskContent(data.task2) : <Card className="p-8 text-center">No data for Task 2</Card>)}
+                    {activeTask === "task1"
+                        ? (data.task1 ? renderTaskContent(data.task1) : <Card className="p-8 text-center">No data for Task 1</Card>)
+                        : (data.task2 ? renderTaskContent(data.task2) : <Card className="p-8 text-center">No data for Task 2</Card>)}
                 </div>
 
                 <div className="flex justify-center mt-8">
@@ -695,7 +656,7 @@ export default function WritingResult() {
                         onClick={() => setIsModalOpen(true)}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg"
                     >
-                        🔍 Xem Chi Tiết Giải Thích (Pop-up)
+                        🔍 View Details
                     </Button>
                 </div>
             </div>
@@ -708,5 +669,5 @@ export default function WritingResult() {
                 initialData={data}
             />
         </div>
-    )
+    );
 }

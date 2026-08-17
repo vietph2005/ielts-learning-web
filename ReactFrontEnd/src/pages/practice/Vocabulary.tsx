@@ -1,8 +1,6 @@
-import { API_URL } from "@/config/api";
-""// src/pages/Vocabulary.tsx
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import apiClient from '@/lib/apiClient';
 import type { Vocabulary as VocabularyType } from '@/lib/type';
 import VocabularyFormModal from '@/components/ui/vocabulary/VocabularyFormModal';
 import VocabularyItem from '@/components/ui/vocabulary/VocabularyItem';
@@ -36,18 +34,21 @@ const Vocabulary: React.FC = () => {
     const [editData, setEditData] = useState<VocabularyType | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-    
-    const API_BASE = `${API_URL}/api/practice`;
-
     useEffect(() => {
-        fetch(`${API_BASE}/vocabulary/topics`, { credentials: "include" })
-            .then(res => res.json())
-            .then(data => setTopics([{ value: '', label: 'All Topics' }, ...data.map((t: string) => ({ value: t, label: t }))]))
+        apiClient.get<string[]>('/vocabularies/topics')
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setTopics([{ value: '', label: 'All Topics' }, ...data.map((t: string) => ({ value: t, label: t }))]);
+                }
+            })
             .catch(() => setTopics([{ value: '', label: 'All Topics' }]));
 
-        fetch(`${API_BASE}/vocabulary/bands`, { credentials: "include" })
-            .then(res => res.json())
-            .then(data => setBands([{ value: '', label: 'All Bands' }, ...data.map((b: string) => ({ value: b, label: b }))]))
+        apiClient.get<string[]>('/vocabularies/bands')
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setBands([{ value: '', label: 'All Bands' }, ...data.map((b: string) => ({ value: b, label: b }))]);
+                }
+            })
             .catch(() => setBands([{ value: '', label: 'All Bands' }]));
     }, []);
 
@@ -62,37 +63,36 @@ const Vocabulary: React.FC = () => {
             params.append('page', page.toString());
             params.append('size', pageSize.toString());
 
-            const response = await fetch(`${API_BASE}/vocabulary/filter?${params.toString()}`, {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch vocabulary');
-            const data = await response.json();
-            setVocabularies(data.content || []);
-            setTotalPages(data.totalPages || 1);
-            setTotalElements(data.totalElements || 0);
+            const data = await apiClient.get<any>(`/vocabularies/search?${params.toString()}`);
+            if (data && data.content) {
+                setVocabularies(data.content);
+                setTotalPages(data.totalPages || 1);
+                setTotalElements(data.totalElements || 0);
+            } else if (Array.isArray(data)) {
+                setVocabularies(data);
+                setTotalPages(1);
+                setTotalElements(data.length);
+            } else {
+                setVocabularies([]);
+                setTotalPages(1);
+                setTotalElements(0);
+            }
             setError('');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
+            setVocabularies([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (user) fetchVocabularies();
-    }, [user, page, search, appliedFilters]);
+        fetchVocabularies();
+    }, [page, search, appliedFilters]);
 
     const handleAddVocabulary = async (vocab: Omit<VocabularyType, 'id'>) => {
         try {
-            const response = await fetch(`${API_BASE}/vocabulary/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(vocab)
-            });
-            if (!response.ok) throw new Error('Failed to add');
+            await apiClient.post('/vocabularies', vocab);
             await fetchVocabularies();
         } catch (err) {
             setError('Failed to add vocabulary');
@@ -101,13 +101,7 @@ const Vocabulary: React.FC = () => {
 
     const handleEditVocabulary = async (id: string, vocab: Omit<VocabularyType, 'id'>) => {
         try {
-            const response = await fetch(`${API_BASE}/vocabulary/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(vocab)
-            });
-            if (!response.ok) throw new Error('Failed to update');
+            await apiClient.put(`/vocabularies/${id}`, vocab);
             await fetchVocabularies();
         } catch {
             setError('Failed to update vocabulary');
@@ -116,11 +110,7 @@ const Vocabulary: React.FC = () => {
 
     const handleDeleteVocabulary = async (id: string) => {
         try {
-            const response = await fetch(`${API_BASE}/vocabulary/${id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-            if (!response.ok) throw new Error('Failed to delete');
+            await apiClient.delete(`/vocabularies/${id}`);
             await fetchVocabularies();
         } catch {
             setError('Failed to delete vocabulary');
@@ -152,10 +142,6 @@ const Vocabulary: React.FC = () => {
             setPage(0);
         }
     };
-
-    if (!user) return <div className="text-center mt-12 text-lg text-gray-500">Please login to view vocabulary</div>;
-    if (loading) return <div className="text-center mt-12 text-lg text-gray-500">Loading...</div>;
-    if (error) return <div className="text-center mt-12 text-lg text-red-500">Error: {error}</div>;
 
     return (
         <motion.div
@@ -194,30 +180,41 @@ const Vocabulary: React.FC = () => {
                 </div>
             </Card>
 
-            <AnimatePresence>
-                {vocabularies.length === 0 ? (
-                    <Card className="p-4 text-center text-gray-500">No vocabulary found</Card>
-                ) : (
-                    <motion.div layout className="space-y-5">
-                        {vocabularies.map(vocab => (
-                            <VocabularyItem
-                                key={vocab.id}
-                                vocabulary={vocab}
-                                onEdit={(v) => setEditData(v)}
-                                onDelete={() => setConfirmDeleteId(vocab.id)}
-                            />
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            <div className="flex justify-between items-center mt-6">
-                <span className="text-gray-600">Page {page + 1} / {totalPages} ({totalElements} words)</span>
-                <div className="flex gap-2">
-                    <Button variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</Button>
-                    <Button variant="outline" disabled={page + 1 >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+            {loading ? (
+                <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+                    <p className="mt-2 text-gray-500">Loading vocabularies...</p>
                 </div>
-            </div>
+            ) : error ? (
+                <Card className="text-center p-6 text-red-500 mb-6">{error}</Card>
+            ) : (
+                <AnimatePresence>
+                    {vocabularies.length === 0 ? (
+                        <Card className="p-4 text-center text-gray-500">No vocabulary found</Card>
+                    ) : (
+                        <motion.div layout className="space-y-5">
+                            {vocabularies.map(vocab => (
+                                <VocabularyItem
+                                    key={vocab.id}
+                                    vocabulary={vocab}
+                                    onEdit={(v) => setEditData(v)}
+                                    onDelete={() => setConfirmDeleteId(vocab.id)}
+                                />
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            )}
+
+            {!loading && vocabularies.length > 0 && (
+                <div className="flex justify-between items-center mt-6">
+                    <span className="text-gray-600">Page {page + 1} / {totalPages} ({totalElements} words)</span>
+                    <div className="flex gap-2">
+                        <Button variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</Button>
+                        <Button variant="outline" disabled={page + 1 >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+                    </div>
+                </div>
+            )}
 
             <VocabularyFormModal
                 open={showAdd}

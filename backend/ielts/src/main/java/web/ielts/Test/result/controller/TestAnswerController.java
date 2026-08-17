@@ -72,11 +72,34 @@ public class TestAnswerController {
             @RequestParam(required = false) String testAnswerId
     ) {
         answer.setSubmittedAt(java.time.LocalDateTime.now());
+        // saveWritingAnswer sẽ lưu ngay và kick off async grading
         WritingAnswer saved = writingTestService.saveWritingAnswer(answer);
         if (testAnswerId != null && !testAnswerId.isEmpty()) {
             testAnswerService.updateWritingAnswer(testAnswerId, saved.getId());
         }
-        return ApiResponse.success(saved, "Nộp bài Writing thành công");
+        return ApiResponse.success(saved, "Nộp bài Writing thành công - đang chấm điểm AI");
+    }
+
+    /**
+     * Polling endpoint: Frontend gọi mỗi 3s để kiểm tra trạng thái chấm AI.
+     * gradingStatus: "grading" | "graded" | "grading_failed" | "submitted"
+     */
+    @GetMapping("/writing/{id}/status")
+    public ApiResponse<Map<String, Object>> getWritingGradingStatus(@PathVariable String id) {
+        return writingTestService.getWritingAnswerById(id)
+                .map(answer -> {
+                    Map<String, Object> statusData = new HashMap<>();
+                    statusData.put("id", answer.getId());
+                    statusData.put("gradingStatus", answer.getGradingStatus());
+                    statusData.put("band", answer.getBand());
+                    // Chỉ trả task scores khi đã chấm xong
+                    if ("graded".equals(answer.getGradingStatus())) {
+                        statusData.put("task1Score", answer.getTask1() != null ? answer.getTask1().getScore() : null);
+                        statusData.put("task2Score", answer.getTask2() != null ? answer.getTask2().getScore() : null);
+                    }
+                    return ApiResponse.success(statusData, "OK");
+                })
+                .orElse(ApiResponse.success(Map.of("gradingStatus", "not_found"), "Not found"));
     }
 
     @PostMapping("/listening")
