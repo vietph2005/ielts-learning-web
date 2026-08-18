@@ -8,100 +8,45 @@ import java.util.List;
 /**
  * Standardized IELTS Speaking Assessment Rubrics & Prompt Builders.
  * Fully aligned with official IELTS Speaking Public Band Descriptors (British Council / IDP / Cambridge).
- * Returns complete list of all grammar and lexical errors detected in the candidate's response.
+ * Highly optimized for token efficiency and strict error extraction.
  */
 public class IeltsSpeakingRubrics {
 
     // =========================================================================
-    // 1. OFFICIAL IELTS SPEAKING BAND DESCRIPTORS (Bands 1 - 9)
+    // 1. CONCISE OFFICIAL IELTS SPEAKING BAND ANCHORS (High-Density Rubric)
     // =========================================================================
 
-    public static final String IELTS_SPEAKING_LEXICAL_RESOURCE = """
-            - IELTS Speaking Band Descriptors (Lexical Resource):
-              • Band 9: Uses a full and flexible range of vocabulary naturally and accurately. Sustained use of idiomatic language and collocation. Skillful and precise paraphrase.
-              • Band 8: Uses a wide vocabulary resource readily and flexibly to discuss all topics and convey precise meaning. Skillful use of less common and idiomatic items despite occasional minor inaccuracies in word choice and collocation. Paraphrases effectively.
-              • Band 7: Uses vocabulary resource flexibly to discuss a variety of topics. Shows some ability to use less common and idiomatic items with awareness of style and collocation, though some inappropriacies occur. Uses paraphrase effectively.
-              • Band 6: Has a wide enough vocabulary to discuss topics at length and make meaning clear in spite of inappropriacies. Generally able to paraphrase successfully.
-              • Band 5: Manages to talk about familiar and unfamiliar topics but uses vocabulary with limited flexibility. Attempts paraphrase but not always with success. Frequent errors in word choice.
-              • Band 4: Vocabulary is sufficient for familiar topics but only basic meaning can be conveyed on unfamiliar topics. Frequent errors in word choice and rare attempts at paraphrase.
-              • Band 3: Uses simple vocabulary to convey personal information. Very limited vocabulary for unfamiliar topics.
-              • Band 2: Only isolated words or memorized phrases. Almost no communication possible without mime or gesture.
-              • Band 1: No rateable language / isolated words only.
-            """;
-
-    public static final String IELTS_SPEAKING_GRAMMATICAL_RANGE_ACCURACY = """
-            - IELTS Speaking Band Descriptors (Grammatical Range and Accuracy):
-              • Band 9: Uses a full range of structures naturally and appropriately. Produces consistently accurate structures apart from characteristic native speaker slips.
-              • Band 8: Uses a wide range of structures flexibly. The majority of sentences are error-free, with only occasional non-systematic errors or minor inappropriacies.
-              • Band 7: Uses a range of complex structures with flexibility. Error-free sentences are frequent, though some grammatical mistakes persist.
-              • Band 6: Uses a mix of simple and complex structures, but with limited flexibility. May make frequent mistakes with complex structures, though these rarely cause comprehension problems.
-              • Band 5: Produces basic sentence forms with reasonable accuracy. Uses a limited range of more complex structures, but these usually contain errors and may cause some confusion.
-              • Band 4: Produces basic sentence forms and some short utterances are error-free. Subordinate clauses are rare, repetitive structures, and errors are frequent.
-              • Band 3: Attempts basic sentence forms but errors predominate except in memorized phrases.
-              • Band 2: Little or no evidence of basic sentence forms.
-              • Band 1: No rateable language.
-            """;
-
-    public static final String IELTS_SPEAKING_COHERENCE = """
-            - IELTS Speaking Band Descriptors (Coherence):
-              • Band 9: Speaks with total coherence and effortless topic development. Uses cohesive devices fully appropriately and naturally throughout.
-              • Band 8: Develops topics fully, coherently and appropriately. Uses cohesive devices flexibly and naturally without noticeable awkwardness.
-              • Band 7: Speaks at length with clear topic development. Uses a range of connectives and discourse markers flexibly, though there may be occasional misuse or awkwardness.
-              • Band 6: Is able to keep talking and develop topics sequentially, though coherence may be lost at times due to occasional repetition or inappropriate linking words.
-              • Band 5: Usually maintains flow of speech but uses overused, simplistic, or inappropriate cohesive devices. Coherence is affected by repetition or disjointed ideas.
-              • Band 4: Can link simple sentences but ideas are often repetitive or fragmented with frequent breakdowns in coherence.
-              • Band 3: Limited ability to link ideas or develop topics logically. Often disconnected or incoherent.
-              • Band 2: Utterances are isolated with no logical sequence.
-              • Band 1: No coherence; utterances are unrelated or unintelligible.
-            """;
-
-    public static final String IELTS_SPEAKING_FLUENCY = """
-            - IELTS Speaking Band Descriptors (Fluency & Acoustic Features):
-              • Band 9: Speaks fluently with only rare repetition or self-correction. Any hesitation is content-related rather than searching for language. SpeechRate ≥ 3.2 wps, PauseRate ≤ 4.0 pauses/min.
-              • Band 8: Speaks fluently with only occasional hesitation, repetition, or self-correction. SpeechRate ≥ 2.8 wps, PauseRate ≤ 7.0 pauses/min.
-              • Band 7: Speaks at length without noticeable effort. May demonstrate language-related hesitation at times, or some repetition/self-correction. SpeechRate ≥ 2.5 wps, PauseRate ≤ 10.0 pauses/min.
-              • Band 6: Is willing to speak at length, though may lose coherence at times due to occasional hesitation, repetition or self-correction. SpeechRate ≥ 2.2 wps, PauseRate ≤ 14.0 pauses/min.
-              • Band 5: Usually maintains flow of speech but uses repetition, self-correction and/or slow speech to keep going. Overuses pauses. SpeechRate ≥ 1.8 wps, PauseRate ≤ 18.0 pauses/min.
-              • Band 4: Cannot respond without noticeable pauses and may speak slowly, with frequent repetition and self-correction. SpeechRate ≥ 1.5 wps, PauseRate ≤ 23.0 pauses/min.
-              • Band 3: Speaks with long pauses and has limited ability to link simple sentences. SpeechRate ≥ 1.2 wps, PauseRate ≤ 28.0 pauses/min.
-              • Band 2: Pauses are long and frequent before nearly every word. SpeechRate ≥ 0.8 wps, PauseRate ≤ 35.0 pauses/min.
-              • Band 1: No rateable continuous speech.
+    public static final String IELTS_SPEAKING_CORE_RUBRICS = """
+            - Lexical Resource (LR):
+              • Band 9: Full flexibility, sophisticated collocations & idiomatic precision.
+              • Band 7.5-8.0: Wide vocabulary, effective collocations & paraphrase, rare minor inaccuracies.
+              • Band 6.0-7.0: Sufficient range for length/detail, clear meaning despite some awkward word choices.
+              • Band 4.5-5.5: Limited flexibility, basic vocabulary on familiar topics, frequent word choice errors.
+              • Band <= 4.0: Extremely limited vocabulary, isolated words only.
+            
+            - Grammatical Range & Accuracy (GRA):
+              • Band 9: Wide range of structures flexibly and naturally, consistently error-free.
+              • Band 7.5-8.0: Frequent complex sentences, majority error-free, only minor non-systematic slips.
+              • Band 6.0-7.0: Mix of simple and complex structures; mistakes occur but rarely impede meaning.
+              • Band 4.5-5.5: Basic sentence forms reasonably accurate; complex structures contain errors.
+              • Band <= 4.0: Repetitive simple structures with predominant errors.
+            
+            - Coherence & Topic Relevance (FC):
+              • Band 9: Effortless topic development, natural logical flow and discourse markers.
+              • Band 7.5-8.0: Fully develops topic with clear progression and flexible connectives.
+              • Band 6.0-7.0: Keeps talking with sequential development, occasional repetition or awkward linking.
+              • Band 4.5-5.5: Simplistic or repetitive connectives; disjointed ideas.
+              • RELEVANCE RULE: If the answer is completely OFF-TOPIC, cap Coherence score at <= 3.5. If underdeveloped (1-2 words), cap at <= 4.5.
             """;
 
     // =========================================================================
-    // 2. STANDARDIZED ERROR TYPES FOR SPEAKING
+    // 2. STANDARDIZED ERROR CATEGORIES FOR SPEAKING
     // =========================================================================
 
     public static final String SPEAKING_ERROR_TYPES = """
-            • Grammar-related:
-            - Grammar: tense
-            - Grammar: subject-verb agreement
-            - Grammar: article usage
-            - Grammar: preposition
-            - Grammar: word form
-            - Grammar: clause structure
-            - Grammar: pronoun usage
-            - Grammar: modal verb
-            - Grammar: sentence structure
-            - Grammar: conditional
-            - Grammar: plural/singular form
-            
-            • Vocabulary-related:
-            - Vocabulary: limited range
-            - Vocabulary: awkward phrasing
-            - Vocabulary: incorrect word
-            - Vocabulary: word choice / collocation
-            - Vocabulary: informal / inappropriate register
-            - Vocabulary: vague expression
-            - Vocabulary: unnecessary repetition
-            
-            • Coherence-related:
-            - Coherence: unclear progression of ideas
-            - Coherence: lack of logical connectors
-            - Coherence: abrupt transitions
-            - Coherence: off-topic response
-            - Coherence: ideas not fully developed
-            - Coherence: repetitive connectives
+            Grammar: tense, subject-verb agreement, article usage, preposition, word form, clause structure, pronoun, modal verb, sentence structure, conditional, plural/singular form.
+            Vocabulary: limited range, awkward phrasing, incorrect word, word choice / collocation, informal register, unnecessary repetition.
+            Coherence: unclear progression, lack of connectors, off-topic response, underdeveloped idea.
             """;
 
     // =========================================================================
@@ -136,57 +81,33 @@ public class IeltsSpeakingRubrics {
         String textTranscript = extractTranscriptText(transcript);
         String fluentInfo = basicFluent != null ? basicFluent.toString() : "N/A";
 
-        return "You must return your response STRICTLY in JSON format.\n" +
-                "You are an official, certified IELTS Speaking Examiner evaluating an authentic IELTS Speaking Part 1 response.\n\n" +
-                "CONTEXT & INSTRUCTIONS FOR PART 1:\n" +
-                "- Part 1 consists of short questions about everyday, familiar topics (home, work, studies, hobbies).\n" +
-                "- A normal Part 1 response has 2 to 4 full sentences (approx. 15-25 seconds). Do NOT penalize candidates for not speaking like a long presentation.\n" +
-                "- If the candidate answers with only a few words or a single incomplete fragment (e.g. \"Yes\", \"football\"), treat it as underdeveloped (Max Band 4.5-5.0).\n" +
-                "- Spoken transcripts have no punctuation. Completely IGNORE missing commas, periods, capitalization, or punctuation marks.\n\n" +
-                "COMPREHENSIVE ERROR DETECTION REQUIREMENT:\n" +
-                "- You MUST scan the ENTIRE transcript and extract ALL grammar errors in 'grammarAnswer.errors' and ALL vocabulary/collocation errors in 'lexicalAnswer.errors'.\n" +
-                "- For each error, 'errorText' must be the exact substring from the transcript.\n" +
-                "- If no errors exist in a category, return an empty list: \"errors\": [].\n" +
-                "- Acoustic Fluency score: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
-                "- Evaluate Coherence based on the transcript's logical progression and topic development.\n" +
-                "- The final Fluency & Coherence score is the balanced average of Acoustic Fluency (" + String.format(java.util.Locale.US, "%.2f", scaledFluency) + ") and your assessed Coherence score, rounded to 0.5 increment.\n\n" +
-                "OFFICIAL BAND DESCRIPTORS TO APPLY:\n" +
-                IELTS_SPEAKING_LEXICAL_RESOURCE + "\n" +
-                IELTS_SPEAKING_GRAMMATICAL_RANGE_ACCURACY + "\n" +
-                IELTS_SPEAKING_COHERENCE + "\n\n" +
-                "ERROR CLASSIFICATION (Select EXACT errorType only from this list):\n" +
-                SPEAKING_ERROR_TYPES + "\n\n" +
-                "REQUIRED JSON OUTPUT STRUCTURE (Must be valid parseable JSON with these exact keys):\n" +
+        return "You must return your response STRICTLY in valid JSON format.\n" +
+                "You are an official IELTS Speaking Examiner evaluating Speaking Part 1 (2-4 conversational sentences).\n" +
+                "- Spoken transcripts have no punctuation. Completely IGNORE missing punctuation or capitalization.\n" +
+                "- Extract key genuine errors (max 5 in grammarAnswer.errors, max 5 in lexicalAnswer.errors). errorText must be exact substring. Keep explanations concise.\n" +
+                "- Acoustic Fluency: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
+                "- Evaluate Coherence from topic progression, connectives, and relevance. If off-topic, cap Coherence <= 3.5.\n" +
+                "- Final Fluency & Coherence score = balanced average of Acoustic Fluency and your assessed Coherence score, rounded to 0.5 increment.\n\n" +
+                "IELTS RUBRIC ANCHORS:\n" +
+                IELTS_SPEAKING_CORE_RUBRICS + "\n" +
+                "ERROR TYPES: " + SPEAKING_ERROR_TYPES + "\n\n" +
+                "REQUIRED JSON OUTPUT STRUCTURE:\n" +
                 "{\n" +
                 "  \"question\": \"The question text\",\n" +
                 "  \"transcript\": \"The candidate transcript text\",\n" +
                 "  \"grammarAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"accurate correction\",\n" +
-                "        \"errorType\": \"Grammar: subject-verb agreement\",\n" +
-                "        \"explanation\": \"concise explanation of the grammar rule\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on grammatical structures and accuracy.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Grammar: tense\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"lexicalAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"natural vocabulary alternative\",\n" +
-                "        \"errorType\": \"Vocabulary: word choice / collocation\",\n" +
-                "        \"explanation\": \"concise explanation of why this word choice is awkward/incorrect\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on vocabulary range, collocations, and precision.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Vocabulary: word choice / collocation\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"fluencyCohAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"comment\": \"Specific feedback regarding speech rate, hesitation, and coherence in Part 1.\"\n" +
+                "    \"comment\": \"Specific concise feedback regarding fluency and coherence in Part 1.\"\n" +
                 "  }\n" +
                 "}\n\n" +
                 "Candidate Question:\n" + question + "\n\n" +
@@ -208,63 +129,37 @@ public class IeltsSpeakingRubrics {
         String fluentInfo = basicFluent != null ? basicFluent.toString() : "N/A";
         String cueCardInfo = cueCards != null ? cueCards.toString() : "N/A";
 
-        return "You must return your response STRICTLY in JSON format.\n" +
-                "You are an official, certified IELTS Speaking Examiner evaluating an authentic IELTS Speaking Part 2 (Long Turn) response.\n\n" +
-                "CONTEXT & INSTRUCTIONS FOR PART 2:\n" +
-                "- The candidate was given a Cue Card with a main topic and prompt guide points.\n" +
-                "- The candidate is expected to speak at length (1 to 2 minutes), telling a coherent story/description.\n" +
-                "- The bullet points on the cue card are guide suggestions. The key requirement is addressing the main topic and developing ideas naturally.\n" +
-                "- If the candidate speaks fewer than 4-5 sentences or stops after 20-30 seconds, cap the score at Band 4.5-5.0 due to insufficient length/development.\n" +
-                "- If the response is completely off-topic, assign Band 3.0-4.0 for Fluency & Coherence.\n" +
-                "- Spoken transcripts have no punctuation. Completely IGNORE missing commas, periods, capitalization, or punctuation marks.\n\n" +
-                "COMPREHENSIVE ERROR DETECTION REQUIREMENT:\n" +
-                "- You MUST scan the ENTIRE transcript and extract ALL grammar errors in 'grammarAnswer.errors' and ALL vocabulary/collocation errors in 'lexicalAnswer.errors'.\n" +
-                "- For each error, 'errorText' must be the exact substring from the transcript.\n" +
-                "- If no errors exist in a category, return an empty list: \"errors\": [].\n" +
-                "- Acoustic Fluency score: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
-                "- Evaluate Coherence based on narrative flow, logical sequencing, and appropriate use of connectives throughout the long turn.\n" +
-                "- The final Fluency & Coherence score is the balanced average of Acoustic Fluency (" + String.format(java.util.Locale.US, "%.2f", scaledFluency) + ") and your assessed Coherence score, rounded to 0.5 increment.\n\n" +
-                "OFFICIAL BAND DESCRIPTORS TO APPLY:\n" +
-                IELTS_SPEAKING_LEXICAL_RESOURCE + "\n" +
-                IELTS_SPEAKING_GRAMMATICAL_RANGE_ACCURACY + "\n" +
-                IELTS_SPEAKING_COHERENCE + "\n\n" +
-                "ERROR CLASSIFICATION (Select EXACT errorType only from this list):\n" +
-                SPEAKING_ERROR_TYPES + "\n\n" +
+        return "You must return your response STRICTLY in valid JSON format.\n" +
+                "You are an official IELTS Speaking Examiner evaluating Speaking Part 2 (Long Turn 1-2 minutes).\n" +
+                "- Spoken transcripts have no punctuation. Completely IGNORE missing punctuation or capitalization.\n" +
+                "- Extract key genuine errors (max 8 in grammarAnswer.errors, max 8 in lexicalAnswer.errors). errorText must be exact substring. Keep explanations concise.\n" +
+                "- If speaking < 30 seconds or off-topic, cap score <= 4.5.\n" +
+                "- Acoustic Fluency: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
+                "- Final Fluency & Coherence score = balanced average of Acoustic Fluency and assessed Coherence score, rounded to 0.5 increment.\n\n" +
+                "IELTS RUBRIC ANCHORS:\n" +
+                IELTS_SPEAKING_CORE_RUBRICS + "\n" +
+                "ERROR TYPES: " + SPEAKING_ERROR_TYPES + "\n\n" +
                 "REQUIRED JSON OUTPUT STRUCTURE:\n" +
                 "{\n" +
                 "  \"question\": \"The question text\",\n" +
                 "  \"transcript\": \"The candidate transcript text\",\n" +
                 "  \"grammarAnswer\": {\n" +
                 "    \"score\": 6.5,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"accurate correction\",\n" +
-                "        \"errorType\": \"Grammar: tense\",\n" +
-                "        \"explanation\": \"concise explanation of the grammar rule\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on grammatical structures and accuracy in Part 2.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Grammar: tense\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"lexicalAnswer\": {\n" +
                 "    \"score\": 6.5,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"natural vocabulary alternative\",\n" +
-                "        \"errorType\": \"Vocabulary: word choice / collocation\",\n" +
-                "        \"explanation\": \"concise explanation of why this word choice is awkward/incorrect\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on vocabulary range, collocations, and precision in Part 2.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Vocabulary: word choice / collocation\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"fluencyCohAnswer\": {\n" +
                 "    \"score\": 6.5,\n" +
-                "    \"comment\": \"Specific feedback regarding Part 2 long turn performance, topic coverage, and discourse flow.\"\n" +
+                "    \"comment\": \"Specific concise feedback regarding Part 2 topic coverage and discourse flow.\"\n" +
                 "  }\n" +
                 "}\n\n" +
-                "Cue Card Topic:\n" + question + "\n\n" +
-                "Cue Card Points:\n" + cueCardInfo + "\n\n" +
+                "Cue Card Topic: " + question + "\n" +
+                "Cue Card Points: " + cueCardInfo + "\n" +
                 "Candidate Transcript:\n" + textTranscript + "\n";
     }
 
@@ -281,61 +176,36 @@ public class IeltsSpeakingRubrics {
         String textTranscript = extractTranscriptText(transcript);
         String fluentInfo = basicFluent != null ? basicFluent.toString() : "N/A";
 
-        return "You must return your response STRICTLY in JSON format.\n" +
-                "You are an official, certified IELTS Speaking Examiner evaluating an authentic IELTS Speaking Part 3 (Two-way Discussion) response.\n\n" +
-                "CONTEXT & INSTRUCTIONS FOR PART 3:\n" +
-                "- Part 3 requires abstract, in-depth discussion on broader social, cultural, or philosophical issues connected to the Part 2 topic.\n" +
-                "- Candidates are evaluated on their ability to express and justify opinions, analyze, hypothesize, and discuss abstract concepts.\n" +
-                "- A strong Part 3 response should have clear point elaboration with reasons and examples (typically 3-6 well-developed sentences per answer).\n" +
-                "- If the candidate provides a superficial 1-sentence answer, limit Band to ≤ 5.0 for lack of topic development.\n" +
-                "- Spoken transcripts have no punctuation. Completely IGNORE missing commas, periods, capitalization, or punctuation marks.\n\n" +
-                "COMPREHENSIVE ERROR DETECTION REQUIREMENT:\n" +
-                "- You MUST scan the ENTIRE transcript and extract ALL grammar errors in 'grammarAnswer.errors' and ALL vocabulary/collocation errors in 'lexicalAnswer.errors'.\n" +
-                "- For each error, 'errorText' must be the exact substring from the transcript.\n" +
-                "- If no errors exist in a category, return an empty list: \"errors\": [].\n" +
-                "- Acoustic Fluency score: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
-                "- Evaluate Coherence based on logical argumentation, cause-and-effect reasoning, and sophisticated discourse markers.\n" +
-                "- The final Fluency & Coherence score is the balanced average of Acoustic Fluency (" + String.format(java.util.Locale.US, "%.2f", scaledFluency) + ") and your assessed Coherence score, rounded to 0.5 increment.\n\n" +
-                "OFFICIAL BAND DESCRIPTORS TO APPLY:\n" +
-                IELTS_SPEAKING_LEXICAL_RESOURCE + "\n" +
-                IELTS_SPEAKING_GRAMMATICAL_RANGE_ACCURACY + "\n" +
-                IELTS_SPEAKING_COHERENCE + "\n\n" +
-                "ERROR CLASSIFICATION (Select EXACT errorType only from this list):\n" +
-                SPEAKING_ERROR_TYPES + "\n\n" +
+        return "You must return your response STRICTLY in valid JSON format.\n" +
+                "You are an official IELTS Speaking Examiner evaluating Speaking Part 3 (In-depth abstract discussion).\n" +
+                "- Spoken transcripts have no punctuation. Completely IGNORE missing punctuation or capitalization.\n" +
+                "- Extract key genuine errors (max 6 in grammarAnswer.errors, max 6 in lexicalAnswer.errors). errorText must be exact substring. Keep explanations concise.\n" +
+                "- If off-topic or superficial (1 sentence), cap Coherence <= 4.0.\n" +
+                "- Acoustic Fluency: " + String.format(java.util.Locale.US, "%.2f", scaledFluency) + " / 9.0 (metrics: " + fluentInfo + ").\n" +
+                "- Final Fluency & Coherence score = balanced average of Acoustic Fluency and assessed Coherence score, rounded to 0.5 increment.\n\n" +
+                "IELTS RUBRIC ANCHORS:\n" +
+                IELTS_SPEAKING_CORE_RUBRICS + "\n" +
+                "ERROR TYPES: " + SPEAKING_ERROR_TYPES + "\n\n" +
                 "REQUIRED JSON OUTPUT STRUCTURE:\n" +
                 "{\n" +
                 "  \"question\": \"The question text\",\n" +
                 "  \"transcript\": \"The candidate transcript text\",\n" +
                 "  \"grammarAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"accurate correction\",\n" +
-                "        \"errorType\": \"Grammar: clause structure\",\n" +
-                "        \"explanation\": \"concise explanation of the grammar rule\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on grammatical structures and accuracy in Part 3.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Grammar: clause structure\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"lexicalAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"errors\": [\n" +
-                "      {\n" +
-                "        \"errorText\": \"exact incorrect phrase from transcript\",\n" +
-                "        \"correctText\": \"natural vocabulary alternative\",\n" +
-                "        \"errorType\": \"Vocabulary: word choice / collocation\",\n" +
-                "        \"explanation\": \"concise explanation of why this word choice is awkward/incorrect\",\n" +
-                "        \"sentenceContext\": \"full sentence containing the error\"\n" +
-                "      }\n" +
-                "    ]\n" +
+                "    \"comment\": \"Concise feedback on vocabulary range, collocations, and precision in Part 3.\",\n" +
+                "    \"errors\": [{\"errorText\": \"...\", \"correctText\": \"...\", \"errorType\": \"Vocabulary: word choice / collocation\", \"explanation\": \"concise 1-sentence note\", \"sentenceContext\": \"full sentence\"}]\n" +
                 "  },\n" +
                 "  \"fluencyCohAnswer\": {\n" +
                 "    \"score\": 7.0,\n" +
-                "    \"comment\": \"Specific feedback on Part 3 discussion, argument expansion, and fluency.\"\n" +
+                "    \"comment\": \"Specific concise feedback on Part 3 discussion, argument expansion, and fluency.\"\n" +
                 "  }\n" +
                 "}\n\n" +
-                "Part 3 Question:\n" + question + "\n\n" +
+                "Part 3 Question: " + question + "\n" +
                 "Candidate Transcript:\n" + textTranscript + "\n";
     }
 }

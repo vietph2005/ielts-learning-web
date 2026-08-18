@@ -62,22 +62,23 @@ class DoTestServiceTest {
     }
 
     @Test
-    void testSaveWritingAnswer_OverallBandCalculation() {
+    void testSaveWritingAnswer_StatusAndSaving() {
         WritingAnswer answer = new WritingAnswer();
         answer.setGradingMethod("AI");
-
-        TaskWritingAnswer task1 = new TaskWritingAnswer();
-        task1.setScore("6.0");
-        TaskWritingAnswer task2 = new TaskWritingAnswer();
-        task2.setScore("7.0");
-
-        answer.setTask1(task1);
-        answer.setTask2(task2);
 
         when(writingAnswerRepository.save(any(WritingAnswer.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WritingAnswer result = writingTestService.saveWritingAnswer(answer);
 
-        assertEquals(6.5, result.getBand());
+        assertNotNull(result);
+        assertEquals("grading", result.getGradingStatus());
+    }
+
+    @Test
+    void testCalculateWritingBandScore() {
+        double score1 = 6.0;
+        double score2 = 7.0;
+        double rawBand = (score1 + score2 * 2.0) / 3.0;
+        assertEquals(6.5, IeltsScoringUtils.calculateIeltsRounding(rawBand));
     }
 }

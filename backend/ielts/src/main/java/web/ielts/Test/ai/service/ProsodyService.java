@@ -328,7 +328,34 @@ public class ProsodyService {
                 partNumber
         );
 
-        // 9. Build final PronunciationAnswer
+        // 9. Calculate 4-layer sub-scores
+        int rawStressMismatchCount = (stressMismatchesDetailed != null) ? stressMismatchesDetailed.size() : 0;
+        int totalPolysyllabic = Math.max(1, (int) Math.round(totalWords * 0.40));
+        int correctWordStress = Math.max(0, totalPolysyllabic - rawStressMismatchCount);
+        double wordStressAccuracy = Math.min(100.0, ((double) correctWordStress / totalPolysyllabic) * 100.0);
+        double bandWordStress = 1.0 + (wordStressAccuracy / 100.0) * 8.0;
+
+        int importantCount = (importantWords != null) ? importantWords.size() : 0;
+        int emphasizedCount = (emphasizedWords != null) ? emphasizedWords.size() : 0;
+        int correctCount = (correctEmphasizedWords != null) ? correctEmphasizedWords.size() : 0;
+
+        double recall = importantCount > 0 ? ((double) correctCount / importantCount) * 100.0 : 100.0;
+        double precision = emphasizedCount > 0 ? ((double) correctCount / emphasizedCount) * 100.0 : 100.0;
+        double f1Score = (recall + precision > 0) ? (2.0 * recall * precision) / (recall + precision) : 0.0;
+        double bandSentenceStress = 1.0 + (f1Score / 100.0) * 8.0;
+
+        double phonemeAccuracy = Math.max(50.0, 95.0 - (rawStressMismatchCount * 3.0));
+        double bandPhonemes = 1.0 + (phonemeAccuracy / 100.0) * 8.0;
+        double bandConnectedSpeech = Math.min(9.0, 0.5 * bandWordStress + 0.5 * bandSentenceStress);
+
+        result.setWordStressAccuracy(Math.round(wordStressAccuracy * 10.0) / 10.0);
+        result.setWordStressScore(Math.round(bandWordStress * 10.0) / 10.0);
+        result.setF1Score(Math.round(f1Score * 10.0) / 10.0);
+        result.setSentenceStressScore(Math.round(bandSentenceStress * 10.0) / 10.0);
+        result.setPhonemeScore(Math.round(bandPhonemes * 10.0) / 10.0);
+        result.setConnectedSpeechScore(Math.round(bandConnectedSpeech * 10.0) / 10.0);
+
+        // 10. Build final PronunciationAnswer
         result.setScore(feedback != null ? feedback.getScore() : 5.0);
         result.setComment(feedback != null ? feedback.getComment() : "");
         result.setStressMismatchesDetailed(stressMismatchesDetailed);

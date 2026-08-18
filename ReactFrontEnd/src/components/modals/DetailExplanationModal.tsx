@@ -317,12 +317,41 @@ export const DetailExplanationModal: React.FC<DetailExplanationModalProps> = ({
             if (currentTaskIdx === 1) {
               return (
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <h4 className="font-bold text-gray-800 text-base">Part 2 Cue Card Question:</h4>
-                  <p className="text-gray-800 bg-purple-50 p-4 rounded-xl font-medium text-sm">{partData.question}</p>
-                  <div>
-                    <h5 className="font-semibold text-gray-700 text-sm mb-1">Transcript (Bài nói):</h5>
-                    <p className="text-gray-800 bg-gray-50 p-4 rounded-xl italic text-sm">{partData.transcript}</p>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-gray-800 text-base">Part 2 Cue Card:</h4>
+                    <span className="font-extrabold text-purple-700 bg-purple-100 px-3 py-1 rounded-full text-xs">
+                      Part Score: Band {partData.score ?? 6.5}
+                    </span>
                   </div>
+                  <p className="text-gray-800 bg-purple-50 p-4 rounded-xl font-medium text-sm border border-purple-100">{partData.question}</p>
+                  <div>
+                    <h5 className="font-semibold text-gray-700 text-xs mb-1">Transcript (Bài nói):</h5>
+                    <p className="text-gray-800 bg-gray-50 p-3.5 rounded-xl italic text-sm border border-gray-100">"{partData.transcript || "No transcript recorded"}"</p>
+                  </div>
+                  {/* 4 Criteria Chips */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-center">
+                      <span className="text-[11px] text-red-700 font-semibold block">Grammar</span>
+                      <span className="text-sm font-bold text-red-900">Band {partData.grammarAnswer?.score ?? 6.5}</span>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center">
+                      <span className="text-[11px] text-amber-700 font-semibold block">Vocabulary</span>
+                      <span className="text-sm font-bold text-amber-900">Band {partData.lexicalAnswer?.score ?? 6.5}</span>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-2.5 text-center">
+                      <span className="text-[11px] text-blue-700 font-semibold block">Fluency</span>
+                      <span className="text-sm font-bold text-blue-900">Band {partData.fluencyCohAnswer?.score ?? 6.5}</span>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 text-center">
+                      <span className="text-[11px] text-purple-700 font-semibold block">Pronunciation</span>
+                      <span className="text-sm font-bold text-purple-900">Band {partData.pronunciationAnswer?.score ?? 6.5}</span>
+                    </div>
+                  </div>
+                  {partData.fluencyCohAnswer?.comment && (
+                    <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 text-xs text-blue-950">
+                      <strong>Examiner Feedback:</strong> {partData.fluencyCohAnswer.comment}
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -330,11 +359,40 @@ export const DetailExplanationModal: React.FC<DetailExplanationModalProps> = ({
             const questions = partData.questions || [];
             return questions.map((q: any, qIdx: number) => (
               <div key={qIdx} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
-                <h4 className="font-bold text-gray-800 text-base">Câu hỏi {qIdx + 1}: {q.question}</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-gray-800 text-sm sm:text-base">Câu hỏi {qIdx + 1}: {q.question}</h4>
+                  <span className="font-extrabold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full text-xs">
+                    Score: Band {q.score ?? 6.5}
+                  </span>
+                </div>
                 <div>
                   <h5 className="font-semibold text-gray-700 text-xs mb-1">Transcript:</h5>
-                  <p className="text-gray-800 bg-purple-50 p-3 rounded-xl italic text-sm">"{q.transcript}"</p>
+                  <p className="text-gray-800 bg-gray-50 p-3 rounded-xl italic text-xs sm:text-sm border border-gray-100">"{q.transcript || "No transcript recorded"}"</p>
                 </div>
+                {/* 4 Criteria Chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-center">
+                    <span className="text-[10px] text-red-700 font-semibold block">Grammar</span>
+                    <span className="text-xs font-bold text-red-900">Band {q.grammarAnswer?.score ?? 6.5}</span>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-center">
+                    <span className="text-[10px] text-amber-700 font-semibold block">Vocabulary</span>
+                    <span className="text-xs font-bold text-amber-900">Band {q.lexicalAnswer?.score ?? 6.5}</span>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-2 text-center">
+                    <span className="text-[10px] text-blue-700 font-semibold block">Fluency</span>
+                    <span className="text-xs font-bold text-blue-900">Band {q.fluencyCohAnswer?.score ?? 6.5}</span>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-2 text-center">
+                    <span className="text-[10px] text-purple-700 font-semibold block">Pronunciation</span>
+                    <span className="text-xs font-bold text-purple-900">Band {q.pronunciationAnswer?.score ?? 6.5}</span>
+                  </div>
+                </div>
+                {q.fluencyCohAnswer?.comment && (
+                  <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-2.5 text-xs text-blue-950">
+                    <strong>Examiner Note:</strong> {q.fluencyCohAnswer.comment}
+                  </div>
+                )}
               </div>
             ));
           })()}

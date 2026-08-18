@@ -13,6 +13,12 @@ public class PronunciationAnswer {
     private List<IntonationSentence> overEmphasis;
     private List<IntonationSentence> missingEmphasis;
     private String comment;
+    private double wordStressScore;
+    private double sentenceStressScore;
+    private double phonemeScore;
+    private double connectedSpeechScore;
+    private double wordStressAccuracy;
+    private double f1Score;
 
     public PronunciationAnswer() {
     }
@@ -120,5 +126,53 @@ public class PronunciationAnswer {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public double getWordStressScore() {
+        return wordStressScore;
+    }
+
+    public void setWordStressScore(double wordStressScore) {
+        this.wordStressScore = wordStressScore;
+    }
+
+    public double getSentenceStressScore() {
+        return sentenceStressScore;
+    }
+
+    public void setSentenceStressScore(double sentenceStressScore) {
+        this.sentenceStressScore = sentenceStressScore;
+    }
+
+    public double getPhonemeScore() {
+        return phonemeScore;
+    }
+
+    public void setPhonemeScore(double phonemeScore) {
+        this.phonemeScore = phonemeScore;
+    }
+
+    public double getConnectedSpeechScore() {
+        return connectedSpeechScore;
+    }
+
+    public void setConnectedSpeechScore(double connectedSpeechScore) {
+        this.connectedSpeechScore = connectedSpeechScore;
+    }
+
+    public double getWordStressAccuracy() {
+        return wordStressAccuracy;
+    }
+
+    public void setWordStressAccuracy(double wordStressAccuracy) {
+        this.wordStressAccuracy = wordStressAccuracy;
+    }
+
+    public double getF1Score() {
+        return f1Score;
+    }
+
+    public void setF1Score(double f1Score) {
+        this.f1Score = f1Score;
     }
 }
