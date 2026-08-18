@@ -140,8 +140,9 @@ public class AIService {
                         Map.of("role", "system", "content", systemMessage),
                         Map.of("role", "user", "content", prompt)
                 ),
+                "response_format", Map.of("type", "json_object"),
                 "temperature", 0.1,
-                "max_tokens", 1200
+                "max_tokens", 3500
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
@@ -195,7 +196,7 @@ public class AIService {
                 ),
                 "response_format", Map.of("type", "json_object"),
                 "temperature", 0.1,
-                "max_tokens", 1200
+                "max_tokens", 3500
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);

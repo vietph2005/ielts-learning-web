@@ -114,6 +114,62 @@ public class CmuDictService {
         return 1;
     }
 
+    public boolean isWordInDictionary(String word) {
+        if (word == null) return false;
+        String cleanWord = word.replaceAll("[^a-zA-Z]", "").toLowerCase();
+        return !cleanWord.isEmpty() && cmuDictMap.containsKey(cleanWord);
+    }
+
+    public int getSyllableCount(String word) {
+        if (word == null) return 0;
+        String cleanWord = word.replaceAll("[^a-zA-Z]", "").toLowerCase();
+        if (cleanWord.isEmpty()) return 0;
+        String pronunciation = cmuDictMap.get(cleanWord);
+        if (pronunciation == null) return 1;
+
+        String[] syllables = pronunciation.split("\\s+");
+        int count = 0;
+        for (String syl : syllables) {
+            if (syl.matches(".*[0-2]$")) {
+                count++;
+            }
+        }
+        return Math.max(1, count);
+    }
+
+    public boolean hasEndingConsonant(String word) {
+        if (word == null) return false;
+        String cleanWord = word.replaceAll("[^a-zA-Z]", "").toLowerCase();
+        if (cleanWord.isEmpty()) return false;
+        String pronunciation = cmuDictMap.get(cleanWord);
+        if (pronunciation == null) return false;
+
+        String[] phonemes = pronunciation.trim().split("\\s+");
+        if (phonemes.length == 0) return false;
+        String lastPhoneme = phonemes[phonemes.length - 1];
+        return !lastPhoneme.matches(".*[0-2]$");
+    }
+
+    public boolean isConsonantToVowelLinking(String wordA, String wordB) {
+        if (wordA == null || wordB == null) return false;
+        String cleanA = wordA.replaceAll("[^a-zA-Z]", "").toLowerCase();
+        String cleanB = wordB.replaceAll("[^a-zA-Z]", "").toLowerCase();
+        if (cleanA.isEmpty() || cleanB.isEmpty()) return false;
+
+        String pronA = cmuDictMap.get(cleanA);
+        String pronB = cmuDictMap.get(cleanB);
+        if (pronA == null || pronB == null) return false;
+
+        String[] phonemesA = pronA.trim().split("\\s+");
+        String[] phonemesB = pronB.trim().split("\\s+");
+        if (phonemesA.length == 0 || phonemesB.length == 0) return false;
+
+        boolean aEndsWithConsonant = !phonemesA[phonemesA.length - 1].matches(".*[0-2]$");
+        boolean bStartsWithVowel = phonemesB[0].matches(".*[0-2]$");
+
+        return aEndsWithConsonant && bStartsWithVowel;
+    }
+
     /**
      * Returns transcript with stressed syllables (according to CMU Dict) capitalized.
      */

@@ -725,7 +725,7 @@ export default function SpeakingResult() {
                                             </div>
                                             <div className="bg-white p-3 rounded-xl border border-blue-100 flex items-center justify-between shadow-sm">
                                                 <span className="text-xs text-blue-700 font-bold">Hesitation Pauses</span>
-                                                <span className="text-sm font-extrabold text-blue-900">{currentQuestion.fluencyCohAnswer.pauseCount} times (>0.35s)</span>
+                                                <span className="text-sm font-extrabold text-blue-900">{currentQuestion.fluencyCohAnswer.pauseCount} times (&gt;0.35s)</span>
                                             </div>
                                         </div>
                                     )}
@@ -919,7 +919,7 @@ export default function SpeakingResult() {
                                             </div>
                                             <div className="bg-white p-3 rounded-xl border border-blue-100 flex items-center justify-between shadow-sm">
                                                 <span className="text-xs text-blue-700 font-bold">Hesitation Pauses</span>
-                                                <span className="text-sm font-extrabold text-blue-900">{question.fluencyCohAnswer.pauseCount} pauses (>0.35s)</span>
+                                                <span className="text-sm font-extrabold text-blue-900">{question.fluencyCohAnswer.pauseCount} pauses (&gt;0.35s)</span>
                                             </div>
                                         </div>
                                     )}

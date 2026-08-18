@@ -189,7 +189,7 @@ public class GroqPronunciationScorer {
     }
 
     // =========================================================================
-    // 2. SCORE PRONUNCIATION (Unified Mathematical Multi-Layer Evaluation)
+    // 2. SCORE PRONUNCIATION (Unified Mathematical Multi-Layer Evaluation - Strict IELTS Standard)
     // =========================================================================
 
     public FeedBackAI scorePronunciation(
@@ -210,46 +210,68 @@ public class GroqPronunciationScorer {
         int correctCount = (correctEmphasizedWords != null) ? correctEmphasizedWords.size() : 0;
         int overCount = (overEmphasis != null) ? overEmphasis.size() : 0;
 
-        // 1. Layer 1: Word Stress Accuracy %
-        int totalPolysyllabic = Math.max(1, (int) Math.round(totalWords * 0.40));
-        int correctWordStress = Math.max(0, totalPolysyllabic - rawStressMismatchCount);
-        double wordStressAccuracy = Math.min(100.0, ((double) correctWordStress / totalPolysyllabic) * 100.0);
+        // 1. Layer 1: Word Stress Accuracy % (Polysyllabic benchmark)
+        int estimatedPolysyllabic = Math.max(1, (int) Math.round(totalWords * 0.35));
+        int correctWordStress = Math.max(0, estimatedPolysyllabic - rawStressMismatchCount);
+        double wordStressAccuracy = Math.min(100.0, ((double) correctWordStress / estimatedPolysyllabic) * 100.0);
         double bandWordStress = 1.0 + (wordStressAccuracy / 100.0) * 8.0;
 
-        // 2. Layer 2: Sentence Stress F1-Score (Anti-Gaming)
-        double recall = importantCount > 0 ? ((double) correctCount / importantCount) * 100.0 : 100.0;
-        double precision = emphasizedCount > 0 ? ((double) correctCount / emphasizedCount) * 100.0 : 100.0;
+        // 2. Layer 2: Sentence Stress F1-Score (Strict non-linear curve)
+        double recall = importantCount > 0 ? ((double) correctCount / importantCount) * 100.0 : 0.0;
+        double precision = emphasizedCount > 0 ? ((double) correctCount / emphasizedCount) * 100.0 : 0.0;
         double f1Score = (recall + precision > 0) ? (2.0 * recall * precision) / (recall + precision) : 0.0;
-        double bandSentenceStress = 1.0 + (f1Score / 100.0) * 8.0;
+        double bandSentenceStress = 1.0 + Math.pow(f1Score / 100.0, 1.25) * 8.0;
 
-        // 3. Layer 3: Phonemes & Ending Sounds (Estimated from clean transcript & articulation)
-        double phonemeAccuracy = Math.max(50.0, 95.0 - (rawStressMismatchCount * 3.0));
-        double bandPhonemes = 1.0 + (phonemeAccuracy / 100.0) * 8.0;
+        // 3. Layer 3: Phonemes & Ending Sounds
+        double phonemeAccuracy = Math.max(20.0, 95.0 - (rawStressMismatchCount * 4.0));
+        double bandPhonemes = 1.0 + Math.pow(phonemeAccuracy / 100.0, 1.3) * 8.0;
 
         // 4. Layer 4: Connected Speech & Chunking
-        double bandConnectedSpeech = Math.min(9.0, 0.5 * bandWordStress + 0.5 * bandSentenceStress);
+        double bandConnectedSpeech = Math.min(9.0, (0.50 * bandWordStress) + (0.50 * bandSentenceStress));
+        bandConnectedSpeech = 1.0 + Math.pow(bandConnectedSpeech / 9.0, 1.25) * 8.0;
 
         // 5. Unified Mathematical Weighted Score (40% + 30% + 15% + 15%)
         double weightedBand = (0.40 * bandWordStress) + (0.30 * bandSentenceStress) + (0.15 * bandPhonemes) + (0.15 * bandConnectedSpeech);
+
+        // Strict IELTS Sample-Size Caps (Band 8.0+ is strictly reserved for >= 45 words in Part 1 and >= 100 words in Part 2/3)
+        if (totalWords < 8) {
+            weightedBand = Math.min(weightedBand, 3.5);
+        } else if (totalWords < 15) {
+            weightedBand = Math.min(weightedBand, 5.0);
+        } else if (totalWords < 25) {
+            weightedBand = Math.min(weightedBand, 6.5);
+        } else if (totalWords < 45) {
+            weightedBand = Math.min(weightedBand, 7.5);
+        }
+
+        if (partNumber >= 2 && totalWords < 50) {
+            weightedBand = Math.min(weightedBand, 5.0);
+        } else if (partNumber >= 2 && totalWords < 90) {
+            weightedBand = Math.min(weightedBand, 6.5);
+        }
+
         weightedBand = Math.round(weightedBand * 2.0) / 2.0; // 0.5 step
         weightedBand = Math.max(1.0, Math.min(9.0, weightedBand));
 
         // 6. Build Compact Prompt for AI Arbitration & Feedback
         StringBuilder prompt = new StringBuilder();
-        prompt.append("Evaluate candidate IELTS Pronunciation criterion (Part ").append(partNumber).append(").\n")
-                .append("Transcript: ").append(transcript != null ? transcript : "").append("\n")
+        prompt.append("You are an official IELTS Speaking Examiner applying STRICT British Council / IDP Pronunciation Band Descriptors.\n")
+                .append("Candidate Part ").append(partNumber).append(".\n")
+                .append("Transcript: \"").append(transcript != null ? transcript : "").append("\"\n\n")
                 .append("Acoustic Metrics:\n")
-                .append("- Total Words: ").append(totalWords).append(", Polysyllabic: ").append(totalPolysyllabic).append("\n")
+                .append("- Total Words: ").append(totalWords).append(", Estimated Polysyllabic: ").append(estimatedPolysyllabic).append("\n")
                 .append("- Word Stress Accuracy: ").append(String.format(Locale.US, "%.1f%%", wordStressAccuracy))
                 .append(" (Mismatches: ").append(rawStressMismatchCount).append(")\n")
                 .append("- Sentence Stress F1: ").append(String.format(Locale.US, "%.1f%%", f1Score))
                 .append(" (Recall: ").append(String.format(Locale.US, "%.1f%%", recall))
                 .append(", Precision: ").append(String.format(Locale.US, "%.1f%%", precision)).append(")\n")
                 .append("- Over-emphasized Words: ").append(overCount).append("\n")
-                .append("- Computed Mathematical Band: ").append(String.format(Locale.US, "%.1f", weightedBand)).append("\n\n")
-                .append("Return strictly valid JSON: {\"score\": ").append(String.format(Locale.US, "%.1f", weightedBand))
-                .append(", \"arbitratedStressErrors\": ").append(rawStressMismatchCount)
-                .append(", \"comment\": \"Concise 2-sentence actionable feedback on stress accuracy, intonation, and rhythm.\"}");
+                .append("- Strict Baseline Band: ").append(String.format(Locale.US, "%.1f", weightedBand)).append(" / 9.0\n\n")
+                .append("STRICT SCORING RULES:\n")
+                .append("1. Band 8.0-9.0 is EXTREMELY RARE: requires sustained (>= 45 words), near-native pronunciation with effortless intonation, linking, and zero phonemic strain.\n")
+                .append("2. Normal fluent non-native speech belongs in Band 6.0 - 7.0.\n")
+                .append("3. If transcript is very short (< 15 words) or nonsensical/unintelligible, score MUST be capped <= 4.0.\n")
+                .append("4. Return strictly valid JSON: {\"score\": number, \"comment\": \"2 concise actionable feedback sentences on stress, intonation, and rhythm.\"}");
 
         // 7. Call AI with retry
         FeedBackAI aiFeedback = callPronunciationScorerApi(prompt.toString(), weightedBand);
@@ -279,8 +301,9 @@ public class GroqPronunciationScorer {
                                      Map.of("role", "system", "content", "You are an official IELTS Speaking Examiner evaluating Pronunciation. Return strictly valid JSON with 'score', 'arbitratedStressErrors', and 'comment'."),
                                      Map.of("role", "user", "content", prompt)
                             ),
+                            "response_format", Map.of("type", "json_object"),
                             "temperature", 0.1,
-                            "max_tokens", 350
+                            "max_tokens", 1000
                     );
 
                     HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
@@ -325,7 +348,7 @@ public class GroqPronunciationScorer {
                         ),
                         "response_format", Map.of("type", "json_object"),
                         "temperature", 0.1,
-                        "max_tokens", 350
+                        "max_tokens", 1000
                 );
 
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
